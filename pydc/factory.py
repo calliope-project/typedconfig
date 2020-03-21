@@ -1,6 +1,5 @@
 import keyword
 import types
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 from pydantic.main import ModelMetaclass
@@ -8,12 +7,7 @@ from pydantic.main import ModelMetaclass
 
 # copied and adapted make_dataclass(..) from cpython/Lib/dataclasses.py
 def make_dataconfig(
-    cls_name: str,
-    fields: List[Union[Tuple[str, Type], Tuple[str, Type, Any]]],
-    *,
-    bases: Tuple[Type] = (),
-    namespace: Optional[Dict] = None,
-    **kwargs,
+    cls_name, fields, *, bases=(), namespace=None, **kwargs,
 ):
     """Return a new dynamically created dataclass.
 
@@ -36,7 +30,7 @@ def make_dataconfig(
     For the bases and namespace parameters, see the builtin type() function.
 
     The parameters init, repr, eq, order, unsafe_hash, and frozen are passed to
-    dataclass().
+    pydantic_dataclass().
     """
 
     if namespace is None:
