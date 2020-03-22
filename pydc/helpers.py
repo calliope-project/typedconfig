@@ -1,6 +1,10 @@
 from importlib import import_module
+import json
+from pathlib import Path
 from types import SimpleNamespace
-from typing import Iterable
+from typing import Any, Dict, Iterable, Union
+
+import yaml
 
 
 class _Names(SimpleNamespace):
@@ -85,3 +89,27 @@ class _Names(SimpleNamespace):
 
 
 NS = _Names()
+
+
+def read_yaml(fpath: Union[str, Path]) -> Dict:
+    """Read a yaml file into a dictionary"""
+    with open(fpath) as fp:
+        return yaml.safe_load(fp)
+
+
+def to_yaml(obj, fpath: Union[str, Path]):
+    """Serialise Python object to yaml"""
+    with open(fpath, mode="w") as fp:
+        yaml.dump(obj, fp)
+
+
+def read_json(fpath: Union[str, Path]) -> Dict:
+    """Read a json file into a dictionary"""
+    with open(fpath) as fp:
+        return json.load(fp)
+
+
+def to_json(obj, fpath: Union[str, Path]):
+    """Serialise Python object to json"""
+    with open(fpath, mode="w") as fp:
+        json.dump(obj, fp)
