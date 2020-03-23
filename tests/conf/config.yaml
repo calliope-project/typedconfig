@@ -1,0 +1,29 @@
+run:
+  backend: pyomo
+  bigM: !!float 1e9
+  cyclic_storage: true
+  mode: plan
+  objective_options:
+    cost_class: {"test": 3.14}
+    sense: minimize
+    objective: minmax_cost_optimization
+  operate_options:
+    window: 2020-01
+    horizon: 1d
+    use_cap_results: false
+    save_logs: /tmp/pydc-dir/file.log
+  backend_options:
+    solver: gurobi
+    solver_io: ""
+    solver_options: {"opts": 1}
+  postprocess_options:
+    zero_threshold: 1e-10
+    compute_metrics: true
+model:
+  calliope_version: v0.6.5-1-g0acf730
+  name: mymodel
+  random_seed: 42
+  reserve_margin: {"foo": 10, "bar": 21}
+  subset_time: [2020-01, 2020-03]
+  timeseries_data_path: /tmp/pydc-dir
+  timeseries_dateformat: "%Y-%m-%dT%H:%M:%S"
