@@ -1,16 +1,24 @@
-PydantiConfig
+PyDataConfig
 =============
 
-This library provides a set of factory methods and parsers to
-automatically generate a type system, that can be used to validate
-config files.
+PyDataConfig provides a set of factory methods and parsers to
+automatically generate a type system based on a set of rules, which
+can then be used to validate config files.
 
 Typically config files are relatively simple in terms of the data
 structures they need to represent.  However configuration for
-scientific software can often require some degree of complexity.
-*PydantiConfig* has been written to meet the needs of the energy
-modelling framework Calliope_, as it often needs to express complex
-relationships and constraints.
+scientific software can often require some degree of complexity; as if
+it is *almost data*!
 
+*PyDataConfig* has been written to meet the needs of the energy
+modelling framework Calliope_, as it often needs to express complex
+relationships and constraints to configure a run.  Since it also
+relies on external solver libraries, it also needs to pass on various
+configuration options to these underlying libraries.
+
+The default parser organises information in a hierarchy.  You can
+specify a ruleset defining the type and validation rules for each key.
+A config type is then generated from the ruleset, which can then be
+used to validate a config file.
 
 .. _Calliope: github.com/calliope-project/calliope
