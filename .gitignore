@@ -1,2 +1,9 @@
 *~
 \#*\#
+
+.mypy*
+.pytest*
+.vscode*
+
+*.json
+*.yaml
