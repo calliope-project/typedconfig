@@ -1,13 +1,18 @@
 from pathlib import Path
+import platform
 import shutil
 
 from boltons.iterutils import remap
+import pytest
 
 from pydc.helpers import read_yaml
 from pydc.parsers import get_config_t
 
 
 # not a unit test, more of an integration test
+@pytest.mark.skipif(
+    platform.system() != "Linux", reason="FIXME: Test setup is Linux specific"
+)
 def test_config_t():
     conf_dir = Path("tests/conf")
     rules = read_yaml(conf_dir / "rules.yaml")
