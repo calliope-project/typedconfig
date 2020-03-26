@@ -24,6 +24,7 @@ from typing import (
     Dict,
     Iterable,
     Sequence,
+    Set,
     Tuple,
     Type,
     Union,
@@ -49,7 +50,7 @@ _type_spec = (
 
 # types for keys and paths as understood by boltons.iterutils
 _Key_t = Union[str, int]  # mapping keys and sequence index
-_Path_t = Tuple[_Key_t]
+_Path_t = Tuple[_Key_t, ...]
 
 
 class _ConfigIO(ABC):
@@ -127,7 +128,7 @@ def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
     return all(type_key not in full_path for type_key in _type_spec)
 
 
-def _nodes(conf: Dict) -> Iterable[_Path_t]:
+def _nodes(conf: Dict) -> Set[_Path_t]:
     """Filter the list of paths for nodes
 
     Parameters
@@ -137,11 +138,11 @@ def _nodes(conf: Dict) -> Iterable[_Path_t]:
 
     Returns
     -------
-    Iterable[_Path_t]
+    Set[_Path_t]
         List of paths to nodes
 
     """
-    return [path for path, _ in research(conf, query=_is_node)]
+    return {path for path, _ in research(conf, query=_is_node)}
 
 
 def _is_leaf(path: _Path_t, paths: Iterable[_Path_t]) -> bool:
@@ -169,7 +170,7 @@ def _is_leaf(path: _Path_t, paths: Iterable[_Path_t]) -> bool:
     return not any(set(path).issubset(q) for q in paths if path != q)
 
 
-def _leaves(paths: Iterable[_Path_t]) -> Iterable[_Path_t]:
+def _leaves(paths: Iterable[_Path_t]) -> Set[_Path_t]:
     """Filter the list of paths for leaf nodes.
 
     Parameters
@@ -179,11 +180,11 @@ def _leaves(paths: Iterable[_Path_t]) -> Iterable[_Path_t]:
 
     Returns
     -------
-    Iterable[_Path_t]
+    Set[_Path_t]
         List of paths to leaf nodes
 
     """
-    return [p for p in paths if _is_leaf(p, paths)]
+    return {p for p in paths if _is_leaf(p, paths)}
 
 
 def _T_parent(path: _Path_t) -> Tuple:
@@ -224,7 +225,9 @@ def _type(value: Dict) -> Type:
     return config_t
 
 
-def _validator(key: str, keys: Sequence[_Key_t], value: Dict) -> classmethod:
+def _validator(
+    key: str, keys: Sequence[_Key_t], value: Dict
+) -> Dict[str, classmethod]:
     """Parse config and create the respective validator method
 
     The validator is bound to a specific key, and a list of all other keys at
@@ -272,7 +275,7 @@ def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
     """
     type_key, _, validator_key, *__ = _type_spec  # get key names
 
-    res = {}
+    res: Dict = {}
     if type_key in value:  # only for basic types (leaf nodes)
         res[type_key] = _type(value)
 
@@ -283,7 +286,7 @@ def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
 
 
 def _spec_to_type(
-    key: str, value: Dict[str, Dict], bases: Tuple[Type] = ()
+    key: str, value: Dict[str, Dict], bases: Tuple[Type, ...] = ()
 ) -> Type:
     """Using the type specification, create the custom type objects
 
@@ -380,7 +383,7 @@ def get_config_t(conf: Dict) -> Type:
 
     # walk up the tree, and process the "new" leaf nodes.  using a set takes
     # care of duplicates.
-    branches: Iterable[_Path_t] = _leaves(set(paths) - set(leaves))
+    branches: Set[_Path_t] = _leaves(paths - leaves)
     while branches:
         _conf = reduce(_update_inplace(_nested_type), branches, _conf)
         branches = {path[:-1] for path in branches if path[:-1]}
