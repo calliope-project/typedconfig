@@ -1,3 +1,14 @@
+"""Parsers for different kinds of configurations
+
+Strictly speaking, the functions provided by this module are not parsers, they
+don't parse the config file themselves.  Instead it relies on the dedicated
+file parsing libraries like `pyyaml`, `json`, etc to parse the files into a
+dictionary.  The functions in this module provide an API to traverse the nested
+dictionary and parse the config rules and dynamically generate a configuration
+type object which can be used to validate the actual config file from the user.
+
+"""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -42,6 +53,14 @@ _Path_t = Tuple[_Key_t]
 
 
 class _ConfigIO(ABC):
+    """Base class to provide partial serialisation
+
+    - reads rules directly from YAML or JSON files
+    - saves config instances to YAML or JSON files (given all config values
+      are serialisable)
+
+    """
+
     @classmethod
     def from_yaml(cls, yaml_path: Union[str, Path]) -> _ConfigIO:
         # FIXME: type checking is ignored for the return statement because mypy
@@ -66,8 +85,11 @@ class _ConfigIO(ABC):
 _ConfigIO_to_file_doc_ = """
 Serialise to {0}
 
-NOTE: serialising to {0} may fail depending on whether any of the
-items in the config is {0} serialisable or not.
+Please note, this cannot be readily reread to create the config type again.  It
+requires a bit of hand editing to conform with the expected rules.
+
+NOTE: serialising may fail depending on whether any of the items in the config
+is {0} serialisable or not.
 
 """
 
@@ -179,7 +201,7 @@ def _T_parent(path: _Path_t) -> Tuple:
 
     Returns
     -------
-    Tuple
+    Tuple (full_path, parent_path)
         A tuple of T objects refering to the full path, and parent path
 
     """
@@ -206,8 +228,8 @@ def _validator(key: str, keys: Sequence[_Key_t], value: Dict) -> classmethod:
     """Parse config and create the respective validator method
 
     The validator is bound to a specific key, and a list of all other keys at
-    the same level are also passed to the validator; NOTE: the order of the
-    keys in the config file is significant.
+    the same level are also made available in the closure; NOTE: the order of
+    the keys in the rules file is significant.
 
     Parameters
     ----------
@@ -353,9 +375,11 @@ def get_config_t(conf: Dict) -> Type:
     paths = _nodes(conf)
     leaves = _leaves(paths)
 
+    # create a copy of the dictionary, and recursively update the leaf nodes
     _conf = reduce(_update_inplace(_str_to_spec), leaves, deepcopy(conf))
 
-    # walk up the tree
+    # walk up the tree, and process the "new" leaf nodes.  using a set takes
+    # care of duplicates.
     branches: Iterable[_Path_t] = _leaves(set(paths) - set(leaves))
     while branches:
         _conf = reduce(_update_inplace(_nested_type), branches, _conf)
