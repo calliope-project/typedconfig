@@ -254,7 +254,7 @@ def _validator(
     return factory(key, keys, **opts)
 
 
-def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
+def _str_to_spec(key: str, value: Dict, parent: Iterable[_Key_t]) -> Dict:
     """Parse the config dictionary and create the types and validators
 
     Parameters
@@ -280,7 +280,7 @@ def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
         res[type_key] = _type(value)
 
     if validator_key in value:  # for validators at all levels
-        res[validator_key] = _validator(key, list(parent.keys()), value)
+        res[validator_key] = _validator(key, list(parent), value)
 
     return res
 
