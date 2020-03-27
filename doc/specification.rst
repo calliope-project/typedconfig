@@ -68,3 +68,10 @@ An example in YAML format follows::
     Key3:
       type: Type3
       opts: [option1, option2]  # passed on as: Type3[option1, option2]
+
+Caveats
+-------
+
+Creating duplicate validators is not supported in general; it will
+raise ``ConfigError``.  Which means the same key name cannot be
+repeated in a configuration hierarchy if they share validators.
