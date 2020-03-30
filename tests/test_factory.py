@@ -105,11 +105,6 @@ ObjOpts_t = make_dataconfig(
 )
 
 
-@pytest.mark.xfail(
-    reason="field spec ignored, instantiation fails b/c missing arg",
-    raises=TypeError,
-    strict=True,
-)
 def test_set_defaults():
     obj_opts = ObjOpts_t(cost_class={"monetary": 1}, sense="minimize")
     assert obj_opts.moreopts is None

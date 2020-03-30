@@ -31,7 +31,7 @@ from typing import (
 )
 
 from boltons.iterutils import research
-from glom import Assign, Coalesce, glom, Invoke, Spec, T
+from glom import Assign, Coalesce, glom, Invoke, Spec, SKIP, T
 
 from pydc.helpers import NS
 from pydc.factory import make_dataconfig
@@ -313,7 +313,19 @@ def _spec_to_type(
 
     """
     fields = glom(
-        value.items(), [({"k": "0", "v": "1.type"}, T.values(), tuple)]
+        value.items(),
+        [
+            (
+                {
+                    "k": "0",
+                    "v": "1.type",
+                    # TODO: non-trivial defaults like mutable types
+                    "d": Coalesce("1.default", default=SKIP),
+                },
+                T.values(),
+                tuple,
+            )
+        ],
     )  # extract key, value and convert to list of tuples
     ns = dict(
         chain(
