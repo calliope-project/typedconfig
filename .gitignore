@@ -1,11 +1,22 @@
 *~
 \#*\#
 
+__pycache__
+
 .mypy*
 .pytest*
+
+.coverage
+htmlcov
+
+# binary
+*.png
+*.pdf
+
 .vscode*
 __pycache__
 .coverage
 
+# cache/dump
 *.json
 *.yaml

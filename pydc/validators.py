@@ -18,3 +18,11 @@ def range_check(
         return _max
 
     return {"range_check": _range_check}
+
+
+# type hints for a validator factory
+_annotations = get_type_hints(range_check)
+validator_factory_t = Callable[
+    [v for k, v in _annotations.items() if k != "return"],
+    _annotations["return"],
+]

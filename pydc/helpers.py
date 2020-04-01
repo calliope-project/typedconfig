@@ -2,7 +2,7 @@ from importlib import import_module
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, Iterable, Union
+from typing import Dict, Iterable, Union
 
 import yaml
 
@@ -67,7 +67,7 @@ class _Names(SimpleNamespace):
                 **{
                     name: getattr(mod, name)
                     for mod in mods
-                    for name in mod.__all__
+                    for name in mod.__all__  # type: ignore
                 }
             )
         except AttributeError as err:

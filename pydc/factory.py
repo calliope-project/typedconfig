@@ -2,13 +2,10 @@ import keyword
 import types
 
 from pydantic.dataclasses import dataclass as pydantic_dataclass
-from pydantic.main import ModelMetaclass
 
 
 # copied and adapted make_dataclass(..) from cpython/Lib/dataclasses.py
-def make_dataconfig(
-    cls_name, fields, *, bases=(), namespace=None, **kwargs,
-):
+def make_dataconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
     """Return a new dynamically created dataclass.
 
     The dataclass name will be 'cls_name'.  'fields' is an iterable
@@ -67,10 +64,6 @@ def make_dataconfig(
     namespace["__annotations__"] = anns
     # We use `types.new_class()` instead of simply `type()` to allow dynamic creation
     # of generic dataclassses.
-    cls = types.new_class(
-        cls_name,
-        bases,
-        {"metaclass": ModelMetaclass},
-        lambda ns: ns.update(namespace),
-    )
+    cls = types.new_class(cls_name, bases, {}, lambda ns: ns.update(namespace))
+
     return pydantic_dataclass(cls, **kwargs)

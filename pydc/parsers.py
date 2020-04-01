@@ -1,3 +1,14 @@
+"""Parsers for different kinds of configurations
+
+Strictly speaking, the functions provided by this module are not parsers, they
+don't parse the config file themselves.  Instead it relies on the dedicated
+file parsing libraries like `pyyaml`, `json`, etc to parse the files into a
+dictionary.  The functions in this module provide an API to traverse the nested
+dictionary and parse the config rules and dynamically generate a configuration
+type object which can be used to validate the actual config file from the user.
+
+"""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -13,13 +24,14 @@ from typing import (
     Dict,
     Iterable,
     Sequence,
+    Set,
     Tuple,
     Type,
     Union,
 )
 
 from boltons.iterutils import research
-from glom import Assign, Coalesce, glom, Invoke, Spec, T
+from glom import Assign, Coalesce, glom, Invoke, Spec, SKIP, T
 
 from pydc.helpers import NS
 from pydc.factory import make_dataconfig
@@ -39,10 +51,18 @@ _type_spec = (
 
 # types for keys and paths as understood by boltons.iterutils
 _Key_t = Union[str, int]  # mapping keys and sequence index
-_Path_t = Tuple[_Key_t]
+_Path_t = Tuple[_Key_t, ...]
 
 
 class _ConfigIO(ABC):
+    """Base class to provide partial serialisation
+
+    - reads rules directly from YAML or JSON files
+    - saves config instances to YAML or JSON files (given all config values
+      are serialisable)
+
+    """
+
     @classmethod
     def from_yaml(cls, yaml_path: Union[str, Path]) -> _ConfigIO:
         # FIXME: type checking is ignored for the return statement because mypy
@@ -92,8 +112,11 @@ class _ConfigIO(ABC):
 _ConfigIO_to_file_doc_ = """
 Serialise to {0}
 
-NOTE: serialising to {0} may fail depending on whether any of the
-items in the config is {0} serialisable or not.
+Please note, this cannot be readily reread to create the config type again.  It
+requires a bit of hand editing to conform with the expected rules.
+
+NOTE: serialising may fail depending on whether any of the items in the config
+is {0} serialisable or not.
 
 """
 
@@ -139,7 +162,7 @@ def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
     return all(type_key not in full_path for type_key in _type_spec)
 
 
-def _nodes(conf: Dict) -> Iterable[_Path_t]:
+def _nodes(conf: Dict) -> Set[_Path_t]:
     """Filter the list of paths for nodes
 
     Parameters
@@ -149,11 +172,11 @@ def _nodes(conf: Dict) -> Iterable[_Path_t]:
 
     Returns
     -------
-    Iterable[_Path_t]
+    Set[_Path_t]
         List of paths to nodes
 
     """
-    return [path for path, _ in research(conf, query=_is_node)]
+    return {path for path, _ in research(conf, query=_is_node)}
 
 
 def _is_leaf(path: _Path_t, paths: Iterable[_Path_t]) -> bool:
@@ -181,7 +204,7 @@ def _is_leaf(path: _Path_t, paths: Iterable[_Path_t]) -> bool:
     return not any(set(path).issubset(q) for q in paths if path != q)
 
 
-def _leaves(paths: Iterable[_Path_t]) -> Iterable[_Path_t]:
+def _leaves(paths: Iterable[_Path_t]) -> Set[_Path_t]:
     """Filter the list of paths for leaf nodes.
 
     Parameters
@@ -191,11 +214,11 @@ def _leaves(paths: Iterable[_Path_t]) -> Iterable[_Path_t]:
 
     Returns
     -------
-    Iterable[_Path_t]
+    Set[_Path_t]
         List of paths to leaf nodes
 
     """
-    return [p for p in paths if _is_leaf(p, paths)]
+    return {p for p in paths if _is_leaf(p, paths)}
 
 
 def _T_parent(path: _Path_t) -> Tuple:
@@ -213,7 +236,7 @@ def _T_parent(path: _Path_t) -> Tuple:
 
     Returns
     -------
-    Tuple
+    Tuple (full_path, parent_path)
         A tuple of T objects refering to the full path, and parent path
 
     """
@@ -236,12 +259,14 @@ def _type(value: Dict) -> Type:
     return config_t
 
 
-def _validator(key: str, keys: Sequence[_Key_t], value: Dict) -> classmethod:
+def _validator(
+    key: str, keys: Sequence[_Key_t], value: Dict
+) -> Dict[str, classmethod]:
     """Parse config and create the respective validator method
 
     The validator is bound to a specific key, and a list of all other keys at
-    the same level are also passed to the validator; NOTE: the order of the
-    keys in the config file is significant.
+    the same level are also made available in the closure; NOTE: the order of
+    the keys in the rules file is significant.
 
     Parameters
     ----------
@@ -269,7 +294,7 @@ def _transformation(key: str, value: Dict) -> classmethod:
     # TODO!
 
 
-def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
+def _str_to_spec(key: str, value: Dict, parent: Iterable[_Key_t]) -> Dict:
     """Parse the config dictionary and create the types and validators
 
     Parameters
@@ -290,12 +315,12 @@ def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
     """
     type_key, _, validator_key, _, trans_key, *__ = _type_spec  # get key names
 
-    res = {}
+    res: Dict = {}
     if type_key in value:  # only for basic types (leaf nodes)
         res[type_key] = _type(value)
 
     if validator_key in value:  # for validators at all levels
-        res[validator_key] = _validator(key, list(parent.keys()), value)
+        res[validator_key] = _validator(key, list(parent), value)
 
     if trans_key in value:
         res[trans_key] = _transformation(key, value)
@@ -305,7 +330,7 @@ def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
 
 
 def _spec_to_type(
-    key: str, value: Dict[str, Dict], bases: Tuple[Type] = ()
+    key: str, value: Dict[str, Dict], bases: Tuple[Type, ...] = ()
 ) -> Type:
     """Using the type specification, create the custom type objects
 
@@ -332,7 +357,19 @@ def _spec_to_type(
 
     """
     fields = glom(
-        value.items(), [({"k": "0", "v": "1.type"}, T.values(), tuple)]
+        value.items(),
+        [
+            (
+                {
+                    "k": "0",
+                    "v": "1.type",
+                    # TODO: non-trivial defaults like mutable types
+                    "d": Coalesce("1.default", default=SKIP),
+                },
+                T.values(),
+                tuple,
+            )
+        ],
     )  # extract key, value and convert to list of tuples
     ns = dict(
         chain(
@@ -397,10 +434,12 @@ def get_config_t(conf: Dict) -> Type:
     paths = _nodes(conf)
     leaves = _leaves(paths)
 
+    # create a copy of the dictionary, and recursively update the leaf nodes
     _conf = reduce(_update_inplace(_str_to_spec), leaves, deepcopy(conf))
 
-    # walk up the tree
-    branches: Iterable[_Path_t] = _leaves(set(paths) - set(leaves))
+    # walk up the tree, and process the "new" leaf nodes.  using a set takes
+    # care of duplicates.
+    branches: Set[_Path_t] = _leaves(paths - leaves)
     while branches:
         _conf = reduce(_update_inplace(_nested_type), branches, _conf)
         branches = {path[:-1] for path in branches if path[:-1]}

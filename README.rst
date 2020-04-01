@@ -1,5 +1,6 @@
-PyDataConfig
-=============
+DataConfig
+==========
+|unittests| |coverage|
 
 PyDataConfig provides a set of factory methods and parsers to
 automatically generate a type system based on a set of rules, which
@@ -22,3 +23,9 @@ A config type is then generated from the ruleset, which can then be
 used to validate a config file.
 
 .. _Calliope: github.com/calliope-project/calliope
+
+.. |unittests| image:: https://github.com/suvayu/dataconfig/workflows/Unit%20tests/badge.svg
+   :target: https://github.com/suvayu/dataconfig/actions
+
+.. |coverage| image:: https://codecov.io/gh/suvayu/dataconfig/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/suvayu/dataconfig
