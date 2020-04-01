@@ -54,6 +54,9 @@ class _Names(SimpleNamespace):
         "pydc.types",
     )
     _validator_modules = ("pydc.validators",)
+    _transform_modules = (
+        "pydc.transforms"
+    )
 
     def _import(self, modules: Iterable[str]):
         """Import names from a nested list of modules to namespace"""
@@ -87,7 +90,12 @@ class _Names(SimpleNamespace):
             self._validators = self._import(self._validator_modules)
         return self._validators
 
-
+    @property
+    def transforms(self):
+        if not hasattr(self, "_transforms"):
+            self._transforms = self._import(self._transform_modules)
+        return self._transforms
+    
 NS = _Names()
 
 

@@ -79,7 +79,7 @@ class _ConfigIO(ABC):
 
         # create paths for access of class member leaves
         cls_leave_trans = map(
-            lambda p: tuple(_intersperse(p, '__annotations__')) + ('transformation',),
+            lambda p: ('.__annotations__.'.join(('',) + p) + 'transformation')[1:],
             leaves
         )
         
@@ -87,13 +87,14 @@ class _ConfigIO(ABC):
         transformers = [glom(cls, Coalesce(path), default = lambda x: x) for path in cls_leave_trans]
         
 
-        # apply the transformations
-        map(
-            lambda func, path: _update_inplace(func)(conf, path),
-            zip(transformers, leaves)
-        )
+        # apply all transforms to the leaves
+        for func, p in zip(transformers, leaves):
+            path = '.'.join(p)
+            glom(conf, Assign(path, Spec((path, func))))
+
         
-        return cls(**read_yaml(yaml_path))  # type: ignore
+        return cls(**conf)  # type: ignore
+    
 
     @classmethod
     def from_json(cls, json_path: Union[str, Path]) -> _ConfigIO:
@@ -122,13 +123,6 @@ is {0} serialisable or not.
 
 _ConfigIO.to_yaml.__doc__ = _ConfigIO_to_file_doc_.format("YAML")
 _ConfigIO.to_json.__doc__ = _ConfigIO_to_file_doc_.format("JSON")
-
-
-def _intersperse(iterable, delimiter):
-    it = iter(iterable)
-    for x in it:
-        yield delimiter
-        yield x
 
 
 
@@ -290,8 +284,8 @@ def _validator(
 
 
 def _transformation(key: str, value: Dict) -> classmethod:
-    pass
-    # TODO!
+    factory = getattr(NS.transforms, value[_type_spec[4]])
+    return factory(key, value)
 
 
 def _str_to_spec(key: str, value: Dict, parent: Iterable[_Key_t]) -> Dict:

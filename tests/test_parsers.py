@@ -72,3 +72,26 @@ def test_config_t():
     assert config.run and config.model
 
     shutil.rmtree(log_dir)
+
+
+
+# not a unit test, more of an integration test
+@pytest.mark.skipif(
+    platform.system() != "Linux", reason="FIXME: Test setup is Linux specific"
+)
+def test_transformations():
+    conf_dir = Path("tests/conf")
+    rules = read_yaml(conf_dir / "transform_rules.yaml")
+    # remove validator because none are implemented
+    conf_rules = remap(rules, visit=lambda p, k, v: k not in ("validator",))
+    config_t = get_config_t(conf_rules)
+
+    # ensure dirs/files exist
+    log_dir = Path("/tmp/pydc-dir")
+    log_dir.mkdir(exist_ok=True)
+    (log_dir / "transform_file.log").touch()
+
+    config = config_t.from_yaml(conf_dir / "transform_config.yaml")
+    assert config.run and config.model
+
+    shutil.rmtree(log_dir)
