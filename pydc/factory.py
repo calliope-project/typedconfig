@@ -1,7 +1,11 @@
 import keyword
 import types
+from typing import Callable, Dict
 
+from pydantic import validator
 from pydantic.dataclasses import dataclass as pydantic_dataclass
+
+_ValidatorMap_t = Dict[str, classmethod]
 
 
 # copied and adapted make_dataclass(..) from cpython/Lib/dataclasses.py
@@ -67,3 +71,41 @@ def make_dataconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
     cls = types.new_class(cls_name, bases, {}, lambda ns: ns.update(namespace))
 
     return pydantic_dataclass(cls, **kwargs)
+
+
+def make_validator(func: Callable, key: str, **params) -> _ValidatorMap_t:
+    """Create a validator classmethod by wrapping a function in a closure
+
+    Parameters
+    ----------
+    func : Callable
+
+        Function to use as a validator.  The function should conform to the
+        following argspec:
+
+          FullArgSpec(args=['cls', 'val', 'values'], varargs=None, kwonlyargs=[...])
+
+    key : str
+        Key to associate validator with
+    **params
+        Keyword arguments to be passed on to the validator function `func`
+
+    Returns
+    -------
+    _ValidatorMap_t
+        A dictionary with the validator function wrapped as a classmethod
+
+          {'function_name' : classmethod(func)}
+
+    """
+    # NOTE: cannot use functools.partial because pydantic does very restrictive
+    # function signature checks.  The module and qualitative names are also
+    # expected to be set.
+    # wrapper = partial(func, **params)
+    # wrapper.__module__ = "<dynamic>"
+    # wrapper.__qualname__ = func.__name__
+
+    def wrapper(cls, val, values):
+        return func(cls, val, values, **params)
+
+    return {func.__name__: validator(key)(wrapper)}

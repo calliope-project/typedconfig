@@ -19,7 +19,6 @@ from itertools import chain
 from pathlib import Path
 from typing import (
     Any,
-    cast,
     Callable,
     Dict,
     Iterable,
@@ -34,7 +33,7 @@ from boltons.iterutils import research
 from glom import Assign, Coalesce, glom, Invoke, Spec, SKIP, T
 
 from pydc.helpers import NS
-from pydc.factory import make_dataconfig
+from pydc.factory import make_dataconfig, make_validator
 from pydc.helpers import read_yaml, read_json, to_yaml, to_json
 
 # type specification keys, order of keys important
@@ -43,6 +42,7 @@ _type_spec = (
     "opts",
     "validator",
     "validator_opts",
+    "validator_params",
     "default",
     "id",
     "doc",
@@ -187,13 +187,11 @@ def _leaves(paths: Iterable[_Path_t]) -> Set[_Path_t]:
     return {p for p in paths if _is_leaf(p, paths)}
 
 
-def _T_parent(path: _Path_t) -> Tuple:
-    """Accepts a path, and returns the full, and parent path as T object.
+def _path_to_glom_spec(path: _Path_t) -> str:
+    """Accepts a path, and returns the glom string spec.
 
-    This function converts a tuple based path used with `boltons` into a T
-    object with keys as understood by `glom`.  While at it, it also separately
-    returns the parent path, useful to access a parallel branch under the same
-    branch.  This is needed when creating validators.
+    This function converts a tuple based path used with `boltons` into a string
+    spec as understood by `glom`.
 
     Parameters
     ----------
@@ -202,12 +200,11 @@ def _T_parent(path: _Path_t) -> Tuple:
 
     Returns
     -------
-    Tuple (full_path, parent_path)
-        A tuple of T objects refering to the full path, and parent path
+    str
+        A glom string spec
 
     """
-    res = reduce(cast(Callable, lambda t, key: t[key]), path[:-1], T)
-    return (res[path[-1]], res) if res else (res[path[-1]], T)
+    return ".".join(map(str, path))
 
 
 def _type(value: Dict) -> Type:
@@ -225,9 +222,7 @@ def _type(value: Dict) -> Type:
     return config_t
 
 
-def _validator(
-    key: str, keys: Sequence[_Key_t], value: Dict
-) -> Dict[str, classmethod]:
+def _validator(key: str, value: Dict) -> Dict[str, classmethod]:
     """Parse config and create the respective validator method
 
     The validator is bound to a specific key, and a list of all other keys at
@@ -238,8 +233,6 @@ def _validator(
     ----------
     key : str
         The config key to associate the validator with
-    keys : Sequence[_Key_t]
-        List of all keys at the same level
     value : Dict
         The config dictionary
 
@@ -249,12 +242,14 @@ def _validator(
         The validator classmethod
 
     """
-    factory = getattr(NS.validators, value[_type_spec[2]])
-    opts = value.get(_type_spec[3], {})
-    return factory(key, keys, **opts)
+    _1, _2, val_key, val_opts_key, val_params_key, *__ = _type_spec
+    func = getattr(NS.validators, value[val_key])
+    # opts = value.get(val_opts_key, {})
+    params = value.get(val_params_key, {})
+    return make_validator(func, key, **params)
 
 
-def _str_to_spec(key: str, value: Dict, parent: Iterable[_Key_t]) -> Dict:
+def _str_to_spec(key: str, value: Dict) -> Dict:
     """Parse the config dictionary and create the types and validators
 
     Parameters
@@ -263,8 +258,6 @@ def _str_to_spec(key: str, value: Dict, parent: Iterable[_Key_t]) -> Dict:
         The key name corresponding to the specification.
     value : Dict
         The config dictionary
-    parent : Dict
-        The config dictionary for the parent key
 
     Returns
     -------
@@ -280,7 +273,7 @@ def _str_to_spec(key: str, value: Dict, parent: Iterable[_Key_t]) -> Dict:
         res[type_key] = _type(value)
 
     if validator_key in value:  # for validators at all levels
-        res[validator_key] = _validator(key, list(parent), value)
+        res[validator_key] = _validator(key, value)
 
     return res
 
@@ -338,7 +331,7 @@ def _spec_to_type(
     return make_dataconfig(f"{key}_t", fields, namespace=ns, bases=bases)
 
 
-def _nested_type(key: str, value: Dict[str, Dict], parent: Dict) -> Dict:
+def _nested_type(key: str, value: Dict[str, Dict]) -> Dict:
     """Create the type dictionary for nested types (not leaf nodes)
 
     Parameters
@@ -348,8 +341,6 @@ def _nested_type(key: str, value: Dict[str, Dict], parent: Dict) -> Dict:
         template for the custom type name.
     value : Dict[str, Dict]
         The config dictionary
-    parent : Dict
-        The config dictionary for the parent key
 
     Returns
     -------
@@ -360,7 +351,7 @@ def _nested_type(key: str, value: Dict[str, Dict], parent: Dict) -> Dict:
     """
     return {
         "type": _spec_to_type(key, value),
-        "validator": _str_to_spec(key, value, parent),
+        "validator": _str_to_spec(key, value),
     }
 
 
@@ -377,10 +368,9 @@ def _update_inplace(
         FIXME: possibly this can be simplified using functools.partial
 
         """
-        _config_t = Spec(
-            Invoke(func).constants(path[-1]).specs(*_T_parent(path))
-        )
-        return glom(_conf, Assign(".".join(map(str, path)), _config_t))
+        glom_spec = _path_to_glom_spec(path)
+        _config_t = Spec(Invoke(func).constants(path[-1]).specs(glom_spec))
+        return glom(_conf, Assign(_path_to_glom_spec(path), _config_t))
 
     return update_inplace
 

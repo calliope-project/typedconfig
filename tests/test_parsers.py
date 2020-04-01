@@ -41,15 +41,19 @@ def test_type_getters():
 def test_validator_getter():
     spec = {
         "validator": "range_check",
+        "validator_params": {"min_key": "min"}
         # "validator_opts":  FIXME:
     }
-    keys = ("bar", "foo")
-    validator = _validator(keys[-1], keys, spec)[spec["validator"]]
+    key = "foo"
+    validator = _validator(key, spec)[spec["validator"]]
 
     assert isinstance(validator, classmethod)  # type
-    assert validator.__validator_config__[0] == keys[-1:]  # validated key
+    assert validator.__validator_config__[0] == (key,)  # validated key
     # list of all keys of parent
-    assert getclosurevars(validator.__func__).nonlocals["keys"] == keys
+    assert (
+        getclosurevars(validator.__func__).nonlocals["params"]
+        == spec["validator_params"]
+    )
 
 
 # not a unit test, more of an integration test
