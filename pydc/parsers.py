@@ -31,6 +31,7 @@ _type_spec = (
     "opts",
     "validator",
     "validator_opts",
+    "transformation",
     "default",
     "id",
     "doc",
@@ -47,6 +48,31 @@ class _ConfigIO(ABC):
         # FIXME: type checking is ignored for the return statement because mypy
         # doesn't seem to know this is an abstract base class, and the argument
         # unpacking makes sense when instantiating any of the derived classes.
+
+        # read in the config
+        conf = read_yaml(yaml_path)
+
+        
+        # get the leafs of the config file -> these are the values we potentially need to apply the transformations to
+        # leaves is an Iterable[_Path_t]
+        leaves = _leaves(_nodes(conf))
+
+        # create paths for access of class member leaves
+        cls_leave_trans = map(
+            lambda p: tuple(_intersperse(p, '__annotations__')) + ('transformation',),
+            leaves
+        )
+        
+        # get transformation functions from class
+        transformers = [glom(cls, Coalesce(path), default = lambda x: x) for path in cls_leave_trans]
+        
+
+        # apply the transformations
+        map(
+            lambda func, path: _update_inplace(func)(conf, path),
+            zip(transformers, leaves)
+        )
+        
         return cls(**read_yaml(yaml_path))  # type: ignore
 
     @classmethod
@@ -73,6 +99,14 @@ items in the config is {0} serialisable or not.
 
 _ConfigIO.to_yaml.__doc__ = _ConfigIO_to_file_doc_.format("YAML")
 _ConfigIO.to_json.__doc__ = _ConfigIO_to_file_doc_.format("JSON")
+
+
+def _intersperse(iterable, delimiter):
+    it = iter(iterable)
+    for x in it:
+        yield delimiter
+        yield x
+
 
 
 def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
@@ -229,6 +263,12 @@ def _validator(key: str, keys: Sequence[_Key_t], value: Dict) -> classmethod:
     return factory(key, keys, **opts)
 
 
+
+def _transformation(key: str, value: Dict) -> classmethod:
+    pass
+    # TODO!
+
+
 def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
     """Parse the config dictionary and create the types and validators
 
@@ -248,7 +288,7 @@ def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
           { "type": <type>, "validator": <validator> }
 
     """
-    type_key, _, validator_key, *__ = _type_spec  # get key names
+    type_key, _, validator_key, _, trans_key, *__ = _type_spec  # get key names
 
     res = {}
     if type_key in value:  # only for basic types (leaf nodes)
@@ -256,6 +296,10 @@ def _str_to_spec(key: str, value: Dict, parent: Dict) -> Dict:
 
     if validator_key in value:  # for validators at all levels
         res[validator_key] = _validator(key, list(parent.keys()), value)
+
+    if trans_key in value:
+        res[trans_key] = _transformation(key, value)
+            
 
     return res
 

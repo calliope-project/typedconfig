@@ -4,6 +4,8 @@
 .mypy*
 .pytest*
 .vscode*
+__pycache__
+.coverage
 
 *.json
 *.yaml
