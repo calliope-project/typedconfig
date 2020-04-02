@@ -8,8 +8,8 @@ import pydantic.types
 import pytest
 import typing_extensions
 
-from pydc.helpers import read_yaml
-from pydc.parsers import get_config_t, _type, _validator
+from dataconfig.helpers import read_yaml
+from dataconfig.parsers import get_config_t, _type, _validator
 
 
 def test_type_getters():
@@ -70,7 +70,7 @@ def test_config_t():
     config_t = get_config_t(conf_rules)
 
     # ensure dirs/files exist
-    log_dir = Path("/tmp/pydc-dir")
+    log_dir = Path("/tmp/dataconfig-dir")
     log_dir.mkdir(exist_ok=True)
     (log_dir / "file.log").touch()
 

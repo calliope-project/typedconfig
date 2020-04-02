@@ -32,9 +32,9 @@ from typing import (
 from boltons.iterutils import research
 from glom import Assign, Coalesce, glom, Invoke, Spec, SKIP, T
 
-from pydc.helpers import NS
-from pydc.factory import make_dataconfig, make_validator
-from pydc.helpers import read_yaml, read_json, to_yaml, to_json
+from dataconfig.helpers import NS
+from dataconfig.factory import make_dataconfig, make_validator
+from dataconfig.helpers import read_yaml, read_json, to_yaml, to_json
 
 # type specification keys, order of keys important
 _type_spec = (

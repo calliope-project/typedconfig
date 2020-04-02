@@ -1,6 +1,6 @@
 import pytest
 
-from pydc.helpers import _Names
+from dataconfig.helpers import _Names
 
 
 def test_nonexistent_module():
@@ -24,6 +24,6 @@ def test_nonconformant_module():
     # modules in the module list are required to have __all__ defined; simulate
     # a non-conformant module by importing one of the internal modules
     NS = _Names()
-    NS._type_modules = ("pydc.helpers",)
+    NS._type_modules = ("dataconfig.helpers",)
     with pytest.raises(TypeError):
         NS.types

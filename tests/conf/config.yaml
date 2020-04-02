@@ -11,7 +11,7 @@ run:
     window: 2020-01
     horizon: 1d
     use_cap_results: false
-    save_logs: /tmp/pydc-dir/file.log
+    save_logs: /tmp/dataconfig-dir/file.log
   backend_options:
     solver: gurobi
     solver_io: ""
@@ -25,5 +25,5 @@ model:
   random_seed: 42
   reserve_margin: {"foo": 10, "bar": 21}
   subset_time: [2020-01, 2020-03]
-  timeseries_data_path: /tmp/pydc-dir
+  timeseries_data_path: /tmp/dataconfig-dir
   timeseries_dateformat: "%Y-%m-%dT%H:%M:%S"

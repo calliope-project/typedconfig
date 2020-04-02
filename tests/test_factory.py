@@ -7,7 +7,7 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 import pytest
 from typing_extensions import Literal  # in 3.8, 'from typing'
 
-from pydc.factory import make_dataconfig, make_validator
+from dataconfig.factory import make_dataconfig, make_validator
 
 
 # standard dataclass
