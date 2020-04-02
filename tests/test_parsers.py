@@ -39,6 +39,7 @@ def test_type_getters():
 
 
 def test_validator_getter():
+    # TODO: test all variations
     spec = {
         "validator": "range_check",
         "validator_params": {"min_key": "min"}
@@ -47,6 +48,7 @@ def test_validator_getter():
     key = "foo"
     validator = _validator(key, spec)[spec["validator"]]
 
+    # FIXME: move to test_factory
     assert isinstance(validator, classmethod)  # type
     assert validator.__validator_config__[0] == (key,)  # validated key
     # list of all keys of parent

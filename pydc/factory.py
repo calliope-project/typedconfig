@@ -1,8 +1,9 @@
 import keyword
 import types
 from typing import Callable, Dict
+from uuid import uuid4
 
-from pydantic import validator
+from pydantic import root_validator, validator
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 _ValidatorMap_t = Dict[str, classmethod]
@@ -73,20 +74,25 @@ def make_dataconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
     return pydantic_dataclass(cls, **kwargs)
 
 
-def make_validator(func: Callable, key: str, **params) -> _ValidatorMap_t:
+def make_validator(
+    func: Callable, key: str, *, opts: Dict = {}, **params
+) -> _ValidatorMap_t:
     """Create a validator classmethod by wrapping a function in a closure
 
     Parameters
     ----------
     func : Callable
-
         Function to use as a validator.  The function should conform to the
         following argspec:
 
           FullArgSpec(args=['cls', 'val', 'values'], varargs=None, kwonlyargs=[...])
 
     key : str
-        Key to associate validator with
+        Key to associate validator with.  If key is "falsy" (empty string,
+        None, etc), a root_validator is created instead.
+
+    opts : Dict
+
     **params
         Keyword arguments to be passed on to the validator function `func`
 
@@ -102,10 +108,13 @@ def make_validator(func: Callable, key: str, **params) -> _ValidatorMap_t:
     # function signature checks.  The module and qualitative names are also
     # expected to be set.
     # wrapper = partial(func, **params)
-    # wrapper.__module__ = "<dynamic>"
-    # wrapper.__qualname__ = func.__name__
 
     def wrapper(cls, val, values):
         return func(cls, val, values, **params)
 
-    return {func.__name__: validator(key)(wrapper)}
+    # pydantic keeps a global registry of all validators as <module>.<name>,
+    # and prevents reuse unless explicitly overridden with allow_reuse=True
+    wrapper.__module__ = f"<dynamic-{uuid4().hex}>"
+    wrapper.__qualname__ = func.__name__
+    decorator = validator(key, **opts) if key else root_validator(**opts)
+    return {func.__name__: decorator(wrapper)}

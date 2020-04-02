@@ -1,3 +1,4 @@
+from inspect import getclosurevars
 from dataclasses import field
 from typing import Any, Dict
 
@@ -6,7 +7,7 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 import pytest
 from typing_extensions import Literal  # in 3.8, 'from typing'
 
-from pydc.factory import make_dataconfig
+from pydc.factory import make_dataconfig, make_validator
 
 
 # standard dataclass
@@ -188,3 +189,25 @@ def test_nested_config():
     assert config.optimise.objective_options.cost_class == {"monetary": 1}
     assert config.optimise.objective_options.sense == "minimize"
     assert config.optimise.objective_options.moreopts is None
+
+
+def quadrant(cls, values, *, axes, signs):
+    if all(k in values for k in axes) and all(
+        values[k] * s > 0 for k, s in zip(axes, signs) if s != 0
+    ):
+        return values
+
+    raise ValueError(f"{values} not in quadrant: {signs}")
+
+
+def test_make_validator():
+    params = {"axes": "xy", "signs": (1, -1)}
+    name, root_validator = make_validator(quadrant, "", **params).popitem()
+    assert name == quadrant.__name__
+    assert isinstance(root_validator, classmethod)
+    assert (
+        getclosurevars(root_validator.__func__).nonlocals["params"] == params
+    )
+
+    # TODO: test regular validators
+    # TODO: test options
