@@ -12,6 +12,10 @@ The basic config item has the following properties:
 
 - ``validator``: function bound to this config item that checks validity
 - ``validator_opts``: options for how the validator behaves
+- ``validator_params``: parameters to bind to the validator function
+  scope; a dictionary, where each key value pair is available in the
+  function as a local variable
+- ``root_validator``: boolean, if true, apply this as a root validator
 - ``doc``: config documentation
 - ``id``: currently unused
 
@@ -26,30 +30,41 @@ Requirements
 - The ``type`` property is mandatory for a leaf node, however a branch
   node may not have one.
 - The ``opts`` property maybe present *only* if ``type`` is.
-- All nodes may have a ``validator``, it is a factory function that
-  returns the real validator, a ``classmethod`` with all of the
-  configuration keys at the same level bound to a list inside a
-  closure.  The factory function returns a dictionary, with the
-  classmethod as value.  The expected signatures are:
+- All nodes may have a ``validator``; a validator is a parametrised
+  function that is wrapped in it's own scope and returned as a
+  ``classmethod``.  The parameters (if present) are bound as local
+  variables within the scope.  The expected form is::
 
-  - factory: ``Callable[[str, Sequence[str]], Dict[str, classmethod]]``
-  - validator: it should have the signature required by ``pydantic``,
-    first argument is the class type, followed by the key value, and a
-    dictionary of keys with values that passed validation.
+    def func(cls: Type, val: Any, values: Dict[str, Any], *,
+             param1: Any, param2: Any, ...):
+        if valid:
+            return val
 
-    ::
+        raise ValueError  # , TypeError, or ValidationError
 
-       def factory(key: str, keys: Sequence[str], **opts) -> Dict[str, classmethod]:
-           @validator(key, **opts)
-           def my_validator(cls, _val, values):
-               if fail(_val, values):
-                   raise ValueError()
-               return _val
-       
-           return {"my_validator": my_validator}
+  Essentially, the beginning part of the signature, before the keyword
+  only arguments should match what is required by ``pydantic``, the
+  first argument is the class type (since it's a classmethod),
+  followed by the key value, and a dictionary of the preceding keys
+  with their corresponding values that passed validation.
 
+  A ``root_validator`` is indicated by setting the ``root_validator``
+  key to ``true``.  The expected signature for the validator function
+  changes slightly; note that ``val`` is missing, as there is no
+  specific key associated to the validator now::
+
+    def func(cls: Type, values: Dict[str, Any], *,
+             param1: Any, param2: Any, ...):
+        if valid:
+            return val
+
+        raise ValueError  # , TypeError, or ValidationError
+
+  The function signatures are not checked when building the config type.
 - The ``validator_opts`` property is passed on as keyword arguments to
-  the ``validator`` decorator.
+  the ``validator`` decorator, it should be a dictionary.
+- Any parameters can be passed through the ``validator_params``
+  option, it should be a dictionary.
 
 Example
 -------
