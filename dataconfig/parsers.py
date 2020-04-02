@@ -243,14 +243,12 @@ def _validator(key: str, value: Dict) -> Dict[str, classmethod]:
         The validator classmethod
 
     """
-    _1, _2, val_key, opts_key, params_key, root_val_key, *__ = _type_spec
-    root = root_val_key in value
-    if val_key in value and root:
-        raise ValueError("bad config, has both validator and root_validator")
-    func = getattr(NS.validators, value[root_val_key if root else val_key])
+    _1, _2, val_key, opts_key, params_key, is_root, *__ = _type_spec
+    func = getattr(NS.validators, value[val_key])
+    key = "" if value.get(is_root, False) else key
     opts = value.get(opts_key, {})
     params = value.get(params_key, {})
-    return make_validator(func, "" if root else key, opts=opts, **params)
+    return make_validator(func, key, opts=opts, **params)
 
 
 def _str_to_spec(key: str, value: Dict) -> Dict:
