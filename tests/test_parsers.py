@@ -8,8 +8,8 @@ import pydantic.types
 import pytest
 import typing_extensions
 
-from pydc.helpers import read_yaml
-from pydc.parsers import get_config_t, _type, _validator
+from dataconfig.helpers import read_yaml
+from dataconfig.parsers import get_config_t, _type, _validator
 
 
 def test_type_getters():
@@ -39,17 +39,23 @@ def test_type_getters():
 
 
 def test_validator_getter():
+    # TODO: test all variations
     spec = {
         "validator": "range_check",
+        "validator_params": {"min_key": "min"}
         # "validator_opts":  FIXME:
     }
-    keys = ("bar", "foo")
-    validator = _validator(keys[-1], keys, spec)[spec["validator"]]
+    key = "foo"
+    validator = _validator(key, spec)[spec["validator"]]
 
+    # FIXME: move to test_factory
     assert isinstance(validator, classmethod)  # type
-    assert validator.__validator_config__[0] == keys[-1:]  # validated key
+    assert validator.__validator_config__[0] == (key,)  # validated key
     # list of all keys of parent
-    assert getclosurevars(validator.__func__).nonlocals["keys"] == keys
+    assert (
+        getclosurevars(validator.__func__).nonlocals["params"]
+        == spec["validator_params"]
+    )
 
 
 # not a unit test, more of an integration test
@@ -64,7 +70,7 @@ def test_config_t():
     config_t = get_config_t(conf_rules)
 
     # ensure dirs/files exist
-    log_dir = Path("/tmp/pydc-dir")
+    log_dir = Path("/tmp/dataconfig-dir")
     log_dir.mkdir(exist_ok=True)
     (log_dir / "file.log").touch()
 

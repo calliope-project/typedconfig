@@ -1,8 +1,8 @@
 [project]
-name = "PyDataConfig"
+name = "DataConfig"
 version = "0.1.dev0"
 description = "A type system with data validation for configuration files."
-repository = "https://github.com/calliope-project/pydataconfig"
+repository = "https://github.com/calliope-project/dataconfig"
 keywords = ["data", "configuration", "validation"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",

@@ -38,10 +38,10 @@ class _Names(SimpleNamespace):
     True
     >>> hasattr(NS.types, 'conint')  # from pydantic.types import conint
     True
-    >>> hasattr(NS.types, 'bool')  # from pydc.types import bool
+    >>> hasattr(NS.types, 'bool')  # from dataconfig.types import bool
     True
 
-    # from pydc.validators import range_check
+    # from dataconfig.validators import range_check
     >>> hasattr(NS.validators, 'range_check')
     True
 
@@ -51,12 +51,13 @@ class _Names(SimpleNamespace):
         "typing",
         "typing_extensions",
         "pydantic.types",
-        "pydc.types",
+        "dataconfig.types",
     )
-    _validator_modules = ("pydc.validators",)
+    _validator_modules = ("dataconfig.validators",)
     _transform_modules = (
         "pydc.transforms",
     )
+
 
     def _import(self, modules: Iterable[str]):
         """Import names from a nested list of modules to namespace"""
