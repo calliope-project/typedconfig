@@ -47,7 +47,7 @@ _type_spec = (
     "default",
     "id",
     "doc",
-    "transformation",,
+    "transformation",
 )
 
 # types for keys and paths as understood by boltons.iterutils

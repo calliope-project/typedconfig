@@ -55,7 +55,7 @@ class _Names(SimpleNamespace):
     )
     _validator_modules = ("dataconfig.validators",)
     _transform_modules = (
-        "pydc.transforms",
+        "dataconfig.transforms",
     )
 
 
