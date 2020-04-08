@@ -55,7 +55,7 @@ class _Names(SimpleNamespace):
     )
     _validator_modules = ("pydc.validators",)
     _transform_modules = (
-        "pydc.transforms"
+        "pydc.transforms",
     )
 
     def _import(self, modules: Iterable[str]):
@@ -95,7 +95,7 @@ class _Names(SimpleNamespace):
         if not hasattr(self, "_transforms"):
             self._transforms = self._import(self._transform_modules)
         return self._transforms
-    
+
 NS = _Names()
 
 

@@ -71,7 +71,6 @@ class _ConfigIO(ABC):
 
         # read in the config
         conf = read_yaml(yaml_path)
-
         
         # get the leafs of the config file -> these are the values we potentially need to apply the transformations to
         # leaves is an Iterable[_Path_t]
@@ -79,7 +78,7 @@ class _ConfigIO(ABC):
 
         # create paths for access of class member leaves
         cls_leave_trans = map(
-            lambda p: ('.__annotations__.'.join(('',) + p) + 'transformation')[1:],
+            lambda p: ('.__annotations__.'.join(('',) + p) + '.transformation')[1:],
             leaves
         )
         
@@ -285,7 +284,7 @@ def _validator(
 
 def _transformation(key: str, value: Dict) -> classmethod:
     factory = getattr(NS.transforms, value[_type_spec[4]])
-    return factory(key, value)
+    return factory()
 
 
 def _str_to_spec(key: str, value: Dict, parent: Iterable[_Key_t]) -> Dict:
@@ -304,7 +303,7 @@ def _str_to_spec(key: str, value: Dict, parent: Iterable[_Key_t]) -> Dict:
     -------
     Dict
         The dictionary with the specifications:
-          { "type": <type>, "validator": <validator> }
+          { "type": <type>, "validator": <validator>, "transformation": <transformation> }
 
     """
     type_key, _, validator_key, _, trans_key, *__ = _type_spec  # get key names
@@ -365,6 +364,7 @@ def _spec_to_type(
             )
         ],
     )  # extract key, value and convert to list of tuples
+    '''
     ns = dict(
         chain(
             *glom(
@@ -373,6 +373,25 @@ def _spec_to_type(
             )
         )
     )  # chain dict.items() and create namespace
+    '''
+    
+    ns_list = chain(
+        *glom(
+            value.values(),
+            [(
+                {
+                    "v": (Coalesce("validator", default_factory=dict)),
+                    "t": (Coalesce("transformation", default_factory=dict))
+                },
+                T.values(),
+                list
+            )],
+        )
+    )
+
+    ns = {}
+    [ns.update(f) for f in ns_list]    
+    
     return make_dataconfig(f"{key}_t", fields, namespace=ns, bases=bases)
 
 

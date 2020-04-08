@@ -95,3 +95,6 @@ def test_transformations():
     assert config.run and config.model
 
     shutil.rmtree(log_dir)
+
+
+test_transformations()
