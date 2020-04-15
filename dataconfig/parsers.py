@@ -283,12 +283,10 @@ def _str_to_spec(key: str, value: Dict) -> Dict:
     -------
     Dict
         The dictionary with the specifications:
-          { "type": <type>, "validator": <validator>, "transformation": <transformation> }
+          { "type": <type>, "validator": <validator> }
 
     """
-    type_key = _type_spec[0]  # get key names
-    validator_key = _type_spec[2]
-    trans_key = _type_spec[9]
+    type_key, _, validator_key, *__ = _type_spec  # get key names
 
     res: Dict = {}
     if type_key in value:  # only for basic types (leaf nodes)
