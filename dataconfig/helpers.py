@@ -54,10 +54,7 @@ class _Names(SimpleNamespace):
         "dataconfig.types",
     )
     _validator_modules = ("dataconfig.validators",)
-    _transform_modules = (
-        "dataconfig.transforms",
-    )
-
+    _transform_modules = ("dataconfig.transforms",)
 
     def _import(self, modules: Iterable[str]):
         """Import names from a nested list of modules to namespace"""
@@ -96,6 +93,7 @@ class _Names(SimpleNamespace):
         if not hasattr(self, "_transforms"):
             self._transforms = self._import(self._transform_modules)
         return self._transforms
+
 
 NS = _Names()
 

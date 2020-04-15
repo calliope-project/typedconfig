@@ -72,29 +72,12 @@ class _ConfigIO(ABC):
 
         # read in the config
         conf = read_yaml(yaml_path)
-        
-        # get the leafs of the config file -> these are the values we potentially need to apply the transformations to
-        # leaves is an Iterable[_Path_t]
-        leaves = _leaves(_nodes(conf))
 
-        # create paths for access of class member leaves
-        cls_leave_trans = map(
-            lambda p: ('.__annotations__.'.join(('',) + p) + '.transformation')[1:],
-            leaves
-        )
-        
-        # get transformation functions from class
-        transformers = [glom(cls, Coalesce(path), default = lambda x: x) for path in cls_leave_trans]
-        
+        # apply all transformations as stored in the cls
+        for path, trans in cls.trans_dict.items():
+            glom(conf, Assign(path, Spec((path, trans))))
 
-        # apply all transforms to the leaves
-        for func, p in zip(transformers, leaves):
-            path = '.'.join(p)
-            glom(conf, Assign(path, Spec((path, func))))
-
-        
         return cls(**conf)  # type: ignore
-    
 
     @classmethod
     def from_json(cls, json_path: Union[str, Path]) -> _ConfigIO:
@@ -123,7 +106,6 @@ is {0} serialisable or not.
 
 _ConfigIO.to_yaml.__doc__ = _ConfigIO_to_file_doc_.format("YAML")
 _ConfigIO.to_json.__doc__ = _ConfigIO_to_file_doc_.format("JSON")
-
 
 
 def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
@@ -278,9 +260,12 @@ def _validator(key: str, value: Dict) -> Dict[str, classmethod]:
     return make_validator(func, key, opts=opts, **params)
 
 
-def _transformation(key: str, value: Dict) -> classmethod:
-    factory = getattr(NS.transforms, value[_type_spec[9]])
-    return factory()
+def lookup_trans(name: str) -> classmethod:
+    """ 
+    lookup transformation method with name <name> in the namespace defined by _transform_modules in helpers.py
+    """
+    fun = getattr(NS.transforms, name)
+    return fun
 
 
 def _str_to_spec(key: str, value: Dict) -> Dict:
@@ -300,7 +285,9 @@ def _str_to_spec(key: str, value: Dict) -> Dict:
           { "type": <type>, "validator": <validator>, "transformation": <transformation> }
 
     """
-    type_key, _, validator_key, _, _, _, _, _, _, trans_key, *__ = _type_spec  # get key names
+    type_key = _type_spec[0]  # get key names
+    validator_key = _type_spec[2]
+    trans_key = _type_spec[9]
 
     res: Dict = {}
     if type_key in value:  # only for basic types (leaf nodes)
@@ -308,10 +295,6 @@ def _str_to_spec(key: str, value: Dict) -> Dict:
 
     if validator_key in value:  # for validators at all levels
         res[validator_key] = _validator(key, value)
-
-    if trans_key in value:
-        res[trans_key] = _transformation(key, value)
-            
 
     return res
 
@@ -358,7 +341,7 @@ def _spec_to_type(
             )
         ],
     )  # extract key, value and convert to list of tuples
-    '''
+
     ns = dict(
         chain(
             *glom(
@@ -367,25 +350,7 @@ def _spec_to_type(
             )
         )
     )  # chain dict.items() and create namespace
-    '''
-    
-    ns_list = chain(
-        *glom(
-            value.values(),
-            [(
-                {
-                    "v": (Coalesce("validator", default_factory=dict)),
-                    "t": (Coalesce("transformation", default_factory=dict))
-                },
-                T.values(),
-                list
-            )],
-        )
-    )
 
-    ns = {}
-    [ns.update(f) for f in ns_list]    
-    
     return make_dataconfig(f"{key}_t", fields, namespace=ns, bases=bases)
 
 
@@ -434,7 +399,20 @@ def _update_inplace(
 
 
 def get_config_t(conf: Dict) -> Type:
-    """Read the config dictionary and create the config type"""
+    """
+    First create the transformation dictionary
+    Then read the config dictionary and create the config type
+    """
+    transname_dict = dict(
+        research(conf, query=lambda p, k, v: k == _type_spec[9])
+    )  # construct dictionary mapping paths ('k1', ..., 'kn') to transformation name
+
+    # remove last key -> 'transformation' and lookup the transformation with correct name
+    trans_dict = {
+        _path_to_glom_spec(k[:-1]): lookup_trans(v)
+        for k, v in transname_dict.items()
+    }
+
     paths = _nodes(conf)
     leaves = _leaves(paths)
 
@@ -447,5 +425,8 @@ def get_config_t(conf: Dict) -> Type:
     while branches:
         _conf = reduce(_update_inplace(_nested_type), branches, _conf)
         branches = {path[:-1] for path in branches if path[:-1]}
+    config_t = _spec_to_type("config", _conf, bases=(_ConfigIO,))
 
-    return _spec_to_type("config", _conf, bases=(_ConfigIO,))
+    config_t.trans_dict = trans_dict
+
+    return config_t
