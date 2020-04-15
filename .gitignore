@@ -20,6 +20,3 @@ __pycache__
 # cache/dump
 *.json
 *.yaml
-
-
-PyDataConfig.egg-info/
