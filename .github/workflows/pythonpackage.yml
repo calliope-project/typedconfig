@@ -28,6 +28,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -e .
+    - name: Format source w/ black
+      # fail when file(s) would be formatted
+      run: black --check .
     - name: Lint w/ flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
