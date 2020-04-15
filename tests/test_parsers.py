@@ -11,6 +11,8 @@ import typing_extensions
 from dataconfig.helpers import read_yaml
 from dataconfig.parsers import get_config_t, _type, _validator
 
+from pandas import Timedelta
+
 
 def test_type_getters():
     spec = {
@@ -76,29 +78,6 @@ def test_config_t():
 
     config = config_t.from_yaml(conf_dir / "config.yaml")
     assert config.run and config.model
-
-    shutil.rmtree(log_dir)
-
-
-# not a unit test, more of an integration test
-@pytest.mark.skipif(
-    platform.system() != "Linux", reason="FIXME: Test setup is Linux specific"
-)
-def test_transformations():
-    conf_dir = Path("tests/conf")
-    rules = read_yaml(conf_dir / "transform_rules.yaml")
-    # remove validator because none are implemented
-    config_t = get_config_t(rules)
-
-    # ensure dirs/files exist
-    log_dir = Path("/tmp/pydc-dir")
-    log_dir.mkdir(exist_ok=True)
-    (log_dir / "transform_file.log").touch()
-
-    config = config_t.from_yaml(conf_dir / "transform_config.yaml")
-    assert config.run and config.model
-    assert isinstance(config.run.backend, int) and isinstance(
-        config.model.random_seed, int
-    )
+    assert isinstance(config.run.operate_options.horizon, Timedelta)
 
     shutil.rmtree(log_dir)

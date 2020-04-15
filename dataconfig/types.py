@@ -7,6 +7,7 @@ from typing import Type
 
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 from pydantic.types import confloat, conint, FilePath
+from pandas import Timedelta
 
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "unitfloat",
     "unitint",
     "FileWithSubset",
+    "Timedelta",
 ]
 
 

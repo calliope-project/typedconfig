@@ -263,6 +263,7 @@ def _validator(key: str, value: Dict) -> Dict[str, classmethod]:
 def lookup_trans(name: str) -> classmethod:
     """ 
     lookup transformation method with name <name> in the namespace defined by _transform_modules in helpers.py
+    This will throw an AttributeError if no transformation with name <name> exists in the namespace
     """
     fun = getattr(NS.transforms, name)
     return fun

@@ -53,7 +53,8 @@ run:
       type: str  # pandas.Timedelta
       doc: "The time window for the rolling horizon optimisation"
     horizon:
-      type: str  # pandas.Timedelta
+      type: Timedelta  # pandas.Timedelta
+      transformation: str_to_timedelta
       validator: operate_horizon_validation
       doc: |
         The time horizon of the rolling horizon optimisation, which

@@ -1,17 +1,9 @@
 from typing import Callable, Dict, Sequence, get_type_hints
+from pandas import Timedelta
+
+__all__ = ["str_to_timedelta"]
 
 
-__all__ = ["str_to_int", "string_to_int"]
-
-
-# a simple transformation for testing purposes
-def str_to_int() -> Dict[str, classmethod]:
-    @classmethod
-    def _str_to_int(cls, val):
-        return int(val)
-
-    return {"str_to_int": _str_to_int}
-
-
-def string_to_int(val):
-    return int(val)
+# trivial implementation for testint purposes
+def str_to_timedelta(val: str):
+    return Timedelta(val)
