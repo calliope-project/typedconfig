@@ -1,12 +1,5 @@
-black
-coverage[toml]
-flake8
 boltons
 glom>=19.10
-mypy
-mypy_extensions
 pydantic
-pytest>=5
-pytest-cov
 typing_extensions
 pyyaml
