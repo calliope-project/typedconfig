@@ -24,8 +24,8 @@ used to validate a config file.
 
 .. _Calliope: github.com/calliope-project/calliope
 
-.. |unittests| image:: https://github.com/suvayu/dataconfig/workflows/Unit%20tests/badge.svg
-   :target: https://github.com/suvayu/dataconfig/actions
+.. |unittests| image:: https://github.com/calliope-project/dataconfig/workflows/Unit%20tests/badge.svg
+   :target: https://github.com/calliope-project/dataconfig/actions
 
-.. |coverage| image:: https://codecov.io/gh/suvayu/dataconfig/branch/master/graph/badge.svg
-   :target: https://codecov.io/gh/suvayu/dataconfig
+.. |coverage| image:: https://codecov.io/gh/calliope-project/dataconfig/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/calliope-project/dataconfig
