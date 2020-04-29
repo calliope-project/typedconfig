@@ -27,3 +27,13 @@ def test_nonconformant_module():
     NS._type_modules = ("dataconfig.helpers",)
     with pytest.raises(TypeError):
         NS.types
+
+
+def test_reload():
+    NS = _Names()
+    # all default modules loaded
+    assert hasattr(NS.types, "PositiveInt")
+    NS._type_modules = ["typing"]
+    NS.reload()
+    # pydantic.types is not loaded, so PositiveInt isn't available
+    assert not hasattr(NS.types, "PositiveInt")

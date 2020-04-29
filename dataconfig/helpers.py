@@ -47,15 +47,19 @@ class _Names(SimpleNamespace):
 
     """
 
-    _type_modules = (
+    _type_modules = [
         "typing",
         "typing_extensions",
         "pydantic.types",
         "dataconfig.types",
-    )
-    _validator_modules = ("dataconfig.validators",)
+    ]
+    _validator_modules = ["dataconfig.validators"]
 
-    def _import(self, modules: Iterable[str]):
+    _types = False
+    _validators = False
+
+    @classmethod
+    def _import(cls, modules: Iterable[str]):
         """Import names from a nested list of modules to namespace"""
         try:
             mods = [import_module(mod) for mod in modules]
@@ -77,39 +81,45 @@ class _Names(SimpleNamespace):
 
     @property
     def types(self):
-        if not hasattr(self, "_types"):
+        if not self._types:
             self._types = self._import(self._type_modules)
         return self._types
 
     @property
     def validators(self):
-        if not hasattr(self, "_validators"):
+        if not self._validators:
             self._validators = self._import(self._validator_modules)
         return self._validators
+
+    def reload(self):
+        """Reload all type and validator modules"""
+        self._types = False
+        self._validators = False
+        _ = self.types, self.validators
 
 
 NS = _Names()
 
 
-def read_yaml(fpath: Union[str, Path]) -> Dict:
+def read_yaml(fpath: Union[str, Path]) -> Dict:  # pragma: no cover, trivial
     """Read a yaml file into a dictionary"""
     with open(fpath) as fp:
         return yaml.safe_load(fp)
 
 
-def to_yaml(obj, fpath: Union[str, Path]):
+def to_yaml(obj, fpath: Union[str, Path]):  # pragma: no cover, trivial
     """Serialise Python object to yaml"""
     with open(fpath, mode="w") as fp:
         yaml.dump(obj, fp)
 
 
-def read_json(fpath: Union[str, Path]) -> Dict:
+def read_json(fpath: Union[str, Path]) -> Dict:  # pragma: no cover, trivial
     """Read a json file into a dictionary"""
     with open(fpath) as fp:
         return json.load(fp)
 
 
-def to_json(obj, fpath: Union[str, Path]):
+def to_json(obj, fpath: Union[str, Path]):  # pragma: no cover, trivial
     """Serialise Python object to json"""
     with open(fpath, mode="w") as fp:
         json.dump(obj, fp)
