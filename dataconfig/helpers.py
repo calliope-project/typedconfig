@@ -91,11 +91,10 @@ class _Names(SimpleNamespace):
             self._validators = self._import(self._validator_modules)
         return self._validators
 
-    def reload(self):
-        """Reload all type and validator modules"""
+    def reset(self):
+        """Reset imported types and validators"""
         self._types = False
         self._validators = False
-        _ = self.types, self.validators
 
 
 NS = _Names()

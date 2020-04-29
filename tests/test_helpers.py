@@ -32,8 +32,10 @@ def test_nonconformant_module():
 def test_reload():
     NS = _Names()
     # all default modules loaded
+    assert hasattr(NS.types, "List")
     assert hasattr(NS.types, "PositiveInt")
     NS._type_modules = ["typing"]
-    NS.reload()
+    NS.reset()
     # pydantic.types is not loaded, so PositiveInt isn't available
+    assert hasattr(NS.types, "List")
     assert not hasattr(NS.types, "PositiveInt")
