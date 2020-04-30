@@ -259,25 +259,32 @@ def _str_to_spec(key: str, value: Dict) -> Dict:
     key : str
         The key name corresponding to the specification.
     value : Dict
-        The config dictionary
+        The config dictionary.
 
     Returns
     -------
     Dict
-        The dictionary with the specifications:
+        A new dictionary is returned, with the strings interpreted as types and
+        validators.  Note that typically type and validators are not parsed at
+        the same pass:
+
           { "type": <type>, "validator": <validator> }
 
     """
     type_key, _, validator_key, *__ = _type_spec  # get key names
+    default = _type_spec[6]
 
     res: Dict = {}
     if type_key in value:  # only for basic types (leaf nodes)
         res[type_key] = _type(value)
 
+    if default in value:  # default value
+        res[default] = value[default]
+
     if validator_key in value:  # for validators at all levels
         res[validator_key] = _validator(key, value)
 
-    return res
+    return value
 
 
 def _spec_to_type(
@@ -307,8 +314,12 @@ def _spec_to_type(
         Custom type object with validators
 
     """
+    default = _type_spec[6]
     fields = glom(
-        value.items(),
+        # NOTE: original ordering is preserved, apart from moving the data
+        # members w/ default arguments later.
+        [(k, v) for k, v in value.items() if default not in v]
+        + [(k, v) for k, v in value.items() if default in v],
         [
             (
                 {
@@ -372,7 +383,7 @@ def _update_inplace(
         """
         glom_spec = _path_to_glom_spec(path)
         _config_t = Spec(Invoke(func).constants(path[-1]).specs(glom_spec))
-        return glom(_conf, Assign(_path_to_glom_spec(path), _config_t))
+        return glom(_conf, Assign(glom_spec, _config_t))
 
     return update_inplace
 

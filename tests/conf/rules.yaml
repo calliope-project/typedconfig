@@ -110,6 +110,7 @@ model:
     type: str
   random_seed:
     type: int
+    default: 42
   reserve_margin:
     type: Dict  # TODO: move this out
     doc: |

@@ -22,7 +22,6 @@ run:
 model:
   calliope_version: v0.6.5-1-g0acf730
   name: mymodel
-  random_seed: 42
   reserve_margin: {"foo": 10, "bar": 21}
   subset_time: [2020-01, 2020-03]
   timeseries_data_path: /tmp/dataconfig-dir
