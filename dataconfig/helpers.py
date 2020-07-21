@@ -51,7 +51,7 @@ class _Names(SimpleNamespace):
         "typing",
         "typing_extensions",
         "pydantic.types",
-        "dataconfig.types",
+        "dataconfig._types",
     ]
     _validator_modules = ["dataconfig.validators"]
 
