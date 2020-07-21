@@ -28,6 +28,7 @@ from typing import (
     Type,
     Union,
 )
+from warnings import warn
 
 from boltons.iterutils import research
 from glom import Assign, Coalesce, glom, Invoke, Spec, SKIP, T
@@ -216,10 +217,10 @@ def _type(value: Dict) -> Type:
         config_t = getattr(NS.types, value[type_key])[tuple(opts)]
     elif opts and isinstance(opts, dict):
         config_t = getattr(NS.types, value[type_key])(**opts)
-    elif not opts:
-        config_t = getattr(NS.types, value[type_key])
     else:
-        pass  # ambiguous option FIXME: log this!
+        config_t = getattr(NS.types, value[type_key])
+        if opts:
+            warn(f"ambiguous option ignored: {opts}", category=UserWarning)
     return config_t
 
 
