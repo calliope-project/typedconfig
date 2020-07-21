@@ -273,17 +273,12 @@ def _str_to_spec(key: str, value: Dict) -> Dict:
 
     """
     type_key, _, validator_key, *__ = _type_spec  # get key names
-    default = _type_spec[6]
 
-    res: Dict = {}
     if type_key in value:  # only for basic types (leaf nodes)
-        res[type_key] = _type(value)
-
-    if default in value:  # default value
-        res[default] = value[default]
+        value[type_key] = _type(value)
 
     if validator_key in value:  # for validators at all levels
-        res[validator_key] = _validator(key, value)
+        value[validator_key] = _validator(key, value)
 
     return value
 
