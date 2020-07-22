@@ -67,8 +67,8 @@ def make_dataconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
         anns[name] = tp
 
     namespace["__annotations__"] = anns
-    # We use `types.new_class()` instead of simply `type()` to allow dynamic creation
-    # of generic dataclassses.
+    # We use `types.new_class()` instead of simply `type()` to allow dynamic
+    # creation of generic dataclassses.
     cls = types.new_class(cls_name, bases, {}, lambda ns: ns.update(namespace))
 
     return pydantic_dataclass(cls, **kwargs)
