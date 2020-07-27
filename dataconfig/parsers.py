@@ -22,7 +22,6 @@ from typing import (
     Callable,
     Dict,
     Iterable,
-    Sequence,
     Set,
     Tuple,
     Type,
@@ -169,6 +168,8 @@ def _is_leaf(path: _Path_t, paths: Iterable[_Path_t]) -> bool:
         Leaf node or not
 
     """
+    if path not in paths:
+        return False
     return not any(set(path).issubset(q) for q in paths if path != q)
 
 
@@ -213,7 +214,7 @@ def _type(value: Dict) -> Type:
     """Parse config and create the respective type"""
     type_key = _type_spec[0]
     opts = value.get(_type_spec[1], None)
-    if opts and isinstance(opts, Sequence):
+    if opts and isinstance(opts, (tuple, list, set)):
         config_t = getattr(NS.types, value[type_key])[tuple(opts)]
     elif opts and isinstance(opts, dict):
         config_t = getattr(NS.types, value[type_key])(**opts)
@@ -240,8 +241,9 @@ def _validator(key: str, value: Dict) -> Dict[str, classmethod]:
 
     Returns
     -------
-    classmethod
-        The validator classmethod
+    Dict[str, classmethod]
+        A dictionary, with the validator method name as key, and the validator
+        classmethod as value
 
     """
     _1, _2, val_key, opts_key, params_key, is_root, *__ = _type_spec
