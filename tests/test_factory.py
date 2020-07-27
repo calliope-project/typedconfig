@@ -202,12 +202,15 @@ def quadrant(cls, values, *, axes, signs):
 
 def test_make_validator():
     params = {"axes": "xy", "signs": (1, -1)}
-    name, root_validator = make_validator(quadrant, "", **params).popitem()
-    assert name == quadrant.__name__
-    assert isinstance(root_validator, classmethod)
-    assert (
-        getclosurevars(root_validator.__func__).nonlocals["params"] == params
-    )
+    key = "foo"
 
-    # TODO: test regular validators
+    name, validator = make_validator(quadrant, key, **params).popitem()
+    assert isinstance(validator, classmethod)
+    assert name == quadrant.__name__
+    assert getclosurevars(validator.__func__).nonlocals["params"] == params
+    assert validator.__validator_config__[0] == (key,)  # validated key
+
+    name, root_validator = make_validator(quadrant, "", **params).popitem()
+    assert isinstance(root_validator, classmethod)
+
     # TODO: test options
