@@ -3,6 +3,12 @@
 
 __pycache__
 
+build
+[_.]build
+*.egg-info
+
+.*[cC]ache*
+
 .mypy*
 .pytest*
 
@@ -18,3 +24,13 @@ htmlcov
 # cache/dump
 *.json
 *.yaml
+
+# reports
+*.html
+*.js
+*.css
+
+.coverage
+.hypothesis
+
+tmp
