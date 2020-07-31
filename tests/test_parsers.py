@@ -9,7 +9,7 @@ import pydantic.types
 import pytest
 import typing_extensions
 
-from dataconfig.helpers import NS, read_yaml
+from dataconfig.helpers import read_yaml
 from dataconfig.parsers import (
     _is_node,
     _nodes,
@@ -140,15 +140,8 @@ def test_validator_getter():
     assert hasattr(validator, "__root_validator_config__")
 
 
-def threshold(cls, val, values, *, threshold):
-    if val > threshold:
-        raise ValueError(f"above threshold: {val} > {threshold}")
-    return val
-
-
 def test_spec_parsing():
-    # inject the example validator into the namespace singleton
-    setattr(NS.validators, "threshold", threshold)
+    # see `dataconfig.validators` for the definition of `threshold`
     spec = {
         "foo": {
             "type": "PositiveFloat",

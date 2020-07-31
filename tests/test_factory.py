@@ -191,16 +191,9 @@ def test_nested_config():
     assert config.optimise.objective_options.moreopts is None
 
 
-def quadrant(cls, values, *, axes, signs):
-    if all(k in values for k in axes) and all(
-        values[k] * s > 0 for k, s in zip(axes, signs) if s != 0
-    ):
-        return values
-
-    raise ValueError(f"{values} not in quadrant: {signs}")
-
-
 def test_make_validator():
+    from dataconfig.validators import quadrant
+
     params = {"axes": "xy", "signs": (1, -1)}
     key = "foo"
 
