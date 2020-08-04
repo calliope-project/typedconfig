@@ -192,18 +192,20 @@ def test_nested_config():
 
 
 def test_make_validator():
-    from dataconfig.validators import quadrant
+    def func():
+        ...
 
-    params = {"axes": "xy", "signs": (1, -1)}
     key = "foo"
+    params = {"bar": "xy", "baz": (1, -1)}
 
-    name, validator = make_validator(quadrant, key, **params).popitem()
+    name, validator = make_validator(func, key, **params).popitem()
     assert isinstance(validator, classmethod)
-    assert name == quadrant.__name__
+    assert name == func.__name__
     assert getclosurevars(validator.__func__).nonlocals["params"] == params
+    assert hasattr(validator, "__validator_config__")
     assert validator.__validator_config__[0] == (key,)  # validated key
 
-    name, root_validator = make_validator(quadrant, "", **params).popitem()
-    assert isinstance(root_validator, classmethod)
+    name, root_validator = make_validator(func, "", **params).popitem()
+    assert hasattr(root_validator, "__root_validator_config__")
 
     # TODO: test options
