@@ -1,8 +1,8 @@
 [project]
-name = "DataConfig"
+name = "TypedConfig"
 version = "0.1.dev0"
 description = "A type system with data validation for configuration files."
-repository = "https://github.com/calliope-project/dataconfig"
+repository = "https://github.com/calliope-project/typedconfig"
 keywords = ["data", "configuration", "validation"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",

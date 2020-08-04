@@ -32,9 +32,9 @@ from warnings import warn
 from boltons.iterutils import research
 from glom import Assign, Coalesce, glom, Invoke, Spec, SKIP, T
 
-from dataconfig.helpers import NS
-from dataconfig.factory import make_dataconfig, make_validator
-from dataconfig.helpers import read_yaml, read_json, to_yaml, to_json
+from typedconfig.helpers import NS
+from typedconfig.factory import make_typedconfig, make_validator
+from typedconfig.helpers import read_yaml, read_json, to_yaml, to_json
 
 # type specification keys, order of keys important
 _type_spec = (
@@ -340,7 +340,7 @@ def _spec_to_type(
             )
         )
     )  # chain dict.items() and create namespace
-    return make_dataconfig(f"{key}_t", fields, namespace=ns, bases=bases)
+    return make_typedconfig(f"{key}_t", fields, namespace=ns, bases=bases)
 
 
 def _nested_type(key: str, value: Dict[str, Dict]) -> Dict:

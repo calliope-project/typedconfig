@@ -10,7 +10,7 @@ _ValidatorMap_t = Dict[str, classmethod]
 
 
 # copied and adapted make_dataclass(..) from cpython/Lib/dataclasses.py
-def make_dataconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
+def make_typedconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
     """Return a new dynamically created dataclass.
 
     The dataclass name will be 'cls_name'.  'fields' is an iterable
@@ -18,7 +18,7 @@ def make_dataconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
     omitted, use the string 'typing.Any'.  Field objects are created by
     the equivalent of calling 'field(name, type [, Field-info])'.
 
-      C = make_dataconfig(
+      C = make_typedconfig(
           "C", [("x", int), ("y", int, field(init=False))], bases=(Base,)
       )
 

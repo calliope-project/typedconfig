@@ -9,8 +9,8 @@ import pydantic.types
 import pytest
 import typing_extensions
 
-from dataconfig.helpers import read_yaml
-from dataconfig.parsers import (
+from typedconfig.helpers import read_yaml
+from typedconfig.parsers import (
     _is_node,
     _nodes,
     _is_leaf,
@@ -141,7 +141,7 @@ def test_validator_getter():
 
 
 def test_spec_parsing():
-    # see `dataconfig.validators` for the definition of `threshold`
+    # see `typedconfig.validators` for the definition of `threshold`
     spec = {
         "foo": {
             "type": "PositiveFloat",
@@ -230,7 +230,7 @@ def test_config_t():
     config_t = get_config_t(conf_rules)
 
     # ensure dirs/files exist
-    log_dir = Path("/tmp/dataconfig-dir")
+    log_dir = Path("/tmp/typedconfig-dir")
     log_dir.mkdir(exist_ok=True)
     (log_dir / "file.log").touch()
 

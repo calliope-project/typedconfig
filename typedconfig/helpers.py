@@ -38,10 +38,10 @@ class _Names(SimpleNamespace):
     True
     >>> hasattr(NS.types, 'conint')  # from pydantic.types import conint
     True
-    >>> hasattr(NS.types, 'bool')  # from dataconfig.types import bool
+    >>> hasattr(NS.types, 'bool')  # from typedconfig.types import bool
     True
 
-    # from dataconfig.validators import range_check
+    # from typedconfig.validators import range_check
     >>> hasattr(NS.validators, 'range_check')
     True
 
@@ -51,9 +51,9 @@ class _Names(SimpleNamespace):
         "typing",
         "typing_extensions",
         "pydantic.types",
-        "dataconfig._types",
+        "typedconfig._types",
     ]
-    _validator_modules = ["dataconfig.validators"]
+    _validator_modules = ["typedconfig.validators"]
 
     _types = False
     _validators = False

@@ -7,7 +7,7 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 import pytest
 from typing_extensions import Literal  # in 3.8, 'from typing'
 
-from dataconfig.factory import make_dataconfig, make_validator
+from typedconfig.factory import make_typedconfig, make_validator
 
 
 # standard dataclass
@@ -31,7 +31,7 @@ def range_check(cls, _max, values):
     return _max
 
 
-RangeType1 = make_dataconfig(
+RangeType1 = make_typedconfig(
     "RangeType1",
     [("min", PositiveInt), ("max", PositiveInt)],
     namespace={"range_check": range_check},
@@ -47,7 +47,7 @@ class RangeCheck:
         return _max
 
 
-RangeType2 = make_dataconfig(
+RangeType2 = make_typedconfig(
     "RangeType2",
     [("min", PositiveInt), ("max", PositiveInt)],
     bases=(RangeCheck,),
@@ -55,7 +55,7 @@ RangeType2 = make_dataconfig(
 
 
 @pytest.mark.parametrize("range_t", [RangeType0, RangeType1, RangeType2])
-def test_make_dataconfig(range_t, capsys):
+def test_make_typedconfig(range_t, capsys):
     rng = range_t(1, 5)
     assert rng.min == 1
     assert rng.max == 5
@@ -77,7 +77,7 @@ def test_make_dataconfig(range_t, capsys):
         range_t(5)
 
 
-RunConfig_t = make_dataconfig(
+RunConfig_t = make_typedconfig(
     "RunConfig_t",
     [
         ("mode", Literal[("quiet", "normal", "verbose")]),
@@ -96,7 +96,7 @@ def test_basic_checks():
         RunConfig_t("quiet", 1.3)
 
 
-ObjOpts_t = make_dataconfig(
+ObjOpts_t = make_typedconfig(
     "ObjOpts_t",
     [
         ("cost_class", Dict),
@@ -128,7 +128,7 @@ def mandatory_opts(cls, obj_opts, values):
         )
 
 
-Objective_t = make_dataconfig(
+Objective_t = make_typedconfig(
     "Objective_t",
     [
         ("objective", Literal["minmax_cost_optimization"]),
@@ -164,7 +164,7 @@ def test_conditional_keys():
         )
 
 
-Config_t = make_dataconfig(
+Config_t = make_typedconfig(
     "Config_t",
     [("run", RunConfig_t), ("range", RangeType0), ("optimise", Objective_t)],
 )

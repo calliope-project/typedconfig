@@ -1,8 +1,8 @@
-DataConfig
+TypedConfig
 ==========
 |unittests| |coverage|
 
-PyDataConfig provides a set of factory methods and parsers to
+TypedConfig provides a set of factory methods and parsers to
 automatically generate a type system based on a set of rules, which
 can then be used to validate config files.
 
@@ -11,7 +11,7 @@ structures they need to represent.  However configuration for
 scientific software can often require some degree of complexity; as if
 it is *almost data*!
 
-*PyDataConfig* has been written to meet the needs of the energy
+*TypedConfig* has been written to meet the needs of the energy
 modelling framework Calliope_, as it often needs to express complex
 relationships and constraints to configure a run.  Since it also
 relies on external solver libraries, it also needs to pass on various
