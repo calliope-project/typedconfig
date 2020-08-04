@@ -312,19 +312,20 @@ def _spec_to_type(
         Custom type object with validators
 
     """
-    default = _type_spec[6]
+    type_k = _type_spec[0]
+    dflt_k = _type_spec[6]
     fields = glom(
         # NOTE: original ordering is preserved, apart from moving the data
         # members w/ default arguments later.
-        [(k, v) for k, v in value.items() if default not in v]
-        + [(k, v) for k, v in value.items() if default in v],
+        [(k, v) for k, v in value.items() if type_k in v and dflt_k not in v]
+        + [(k, v) for k, v in value.items() if type_k in v and dflt_k in v],
         [
             (
                 {
                     "k": "0",
-                    "v": "1.type",
+                    "v": f"1.{type_k}",
                     # TODO: non-trivial defaults like mutable types
-                    "d": Coalesce("1.default", default=SKIP),
+                    "d": Coalesce(f"1.{dflt_k}", default=SKIP),
                 },
                 T.values(),
                 tuple,
