@@ -1,4 +1,4 @@
-__all__ = ["range_check", "quadrant", "threshold"]
+__all__ = ["range_check", "quadrant", "threshold", "zero_sum", "sum_by_name"]
 
 
 def range_check(cls, _max, values, *, min_key):
@@ -21,3 +21,17 @@ def threshold(cls, val, values, *, threshold):
     if val > threshold:
         raise ValueError(f"above threshold: {val} > {threshold}")
     return val
+
+
+def zero_sum(cls, values, *, total):
+    mysum = sum(values.values())
+    if mysum != total:
+        raise ValueError(f"{list(values.values())} do not add up to {total}")
+    return values
+
+
+def sum_by_name(cls, values, *, total):
+    mysum = values.get("first", 0) + values.get("second", 0)
+    if mysum != total:
+        raise ValueError(f"{list(values.values())} do not add up to {total}")
+    return values

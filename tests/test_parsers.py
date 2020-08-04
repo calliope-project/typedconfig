@@ -170,6 +170,54 @@ def test_spec_parsing():
         config_t(foo=6)
 
 
+def test_spec_parsing_nested():
+    # root validator on a leaf node
+    spec = {
+        "zero_sum_total": {
+            "foo": {"type": "PositiveInt"},
+            "bar": {
+                "type": "PositiveInt",
+                "validator": "zero_sum",
+                "validator_params": {"total": 15},
+                "root_validator": True,
+            },
+        }
+    }
+
+    config_t = get_config_t(spec)
+    conf = config_t(zero_sum_total=dict(foo=5, bar=10))
+    assert conf.zero_sum_total.foo + conf.zero_sum_total.bar == 15
+
+    with pytest.raises(ValueError, match=".+do not add up.+"):
+        config_t(zero_sum_total={"foo": 15, "bar": 10})
+    with pytest.raises(ValueError, match=".+do not add up.+"):
+        config_t(zero_sum_total={"foo": 5, "bar": 1})
+
+    # root validator on an intermediate node
+    spec = {
+        "top": {
+            "first": {"type": "PositiveInt"},
+            "second": {
+                "type": "PositiveInt",
+                "validator": "sum_by_name",
+                "validator_params": {"total": 15},
+                "root_validator": True,
+            },
+            "nest": {"leaf": {"type": "conint", "opts": {"multiple_of": 5}}},
+        }
+    }
+
+    config_t = get_config_t(spec)
+    conf = config_t(top=dict(first=5, second=10, nest={"leaf": 15}))
+    assert conf.top.first + conf.top.second == 15
+    assert conf.top.nest.leaf % 5 == 0
+
+    with pytest.raises(ValueError, match=".+do not add up.+"):
+        config_t(top=dict(first=5, second=1, nest={"leaf": 15}))
+    with pytest.raises(ValueError, match=".+multiple of+"):
+        config_t(top=dict(first=5, second=10, nest={"leaf": 13}))
+
+
 # not a unit test, more of an integration test
 @pytest.mark.skipif(
     platform.system() != "Linux", reason="FIXME: Test setup is Linux specific"
