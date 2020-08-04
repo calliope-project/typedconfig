@@ -107,10 +107,14 @@ def make_validator(
     # NOTE: cannot use functools.partial because pydantic does very restrictive
     # function signature checks.  The module and qualitative names are also
     # expected to be set.
-    # wrapper = partial(func, **params)
 
-    def wrapper(cls, val, values):
+    def wrapper_key(cls, val, values):
         return func(cls, val, values, **params)
+
+    def wrapper_root(cls, values):
+        return func(cls, values, **params)
+
+    wrapper = wrapper_key if key else wrapper_root
 
     # pydantic keeps a global registry of all validators as <module>.<name>,
     # and prevents reuse unless explicitly overridden with allow_reuse=True
