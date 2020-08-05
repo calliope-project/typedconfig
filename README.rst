@@ -22,7 +22,7 @@ tree.  You can specify a ruleset defining the type and validation
 rules for each key in the tree.  A master config type is generated
 from the ruleset, which can then be used to validate a config file.
 
-.. _Calliope: github.com/calliope-project/calliope
+.. _Calliope: https://github.com/calliope-project/calliope
 
 .. |unittests| image:: https://github.com/calliope-project/dataconfig/workflows/Unit%20tests/badge.svg
    :target: https://github.com/calliope-project/dataconfig/actions
