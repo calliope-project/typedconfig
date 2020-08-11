@@ -1,8 +1,10 @@
+from collections import Counter
 from importlib import import_module
+from itertools import chain
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Dict, Iterable, Union
+from typing import Any, Dict, Iterable, List, Union
 
 import yaml
 
@@ -122,3 +124,35 @@ def to_json(obj, fpath: Union[str, Path]):  # pragma: no cover, trivial
     """Serialise Python object to json"""
     with open(fpath, mode="w") as fp:
         json.dump(obj, fp)
+
+
+def merge_dicts(confs: List[Dict]) -> Dict:
+    """Merge a sequence of dictionaries
+
+    Common keys at the same depth are recursively reconciled.  The newer value
+    overwrites earlier values.  The order of the keys are preserved.  When
+    merging repeated keys, the position of the first occurence is considered as
+    correct.
+
+    Parameters
+    ----------
+    confs: List[Dict]
+        A list of dictionaries
+
+    Returns
+    -------
+    Dict
+        Merged dictionary
+
+    """
+    if not all(map(lambda obj: isinstance(obj, dict), confs)):
+        return confs[-1]
+
+    res: Dict[str, Any] = {}
+    for key, count in Counter(chain.from_iterable(confs)).items():
+        matches = [conf[key] for conf in confs if key in conf]
+        if count > 1:
+            res[key] = merge_dicts(matches)  # duplicate keys, recurse
+        else:
+            res[key] = matches[0]  # only one element
+    return res
