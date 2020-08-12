@@ -23,6 +23,7 @@ from typing import (
     Dict,
     Iterable,
     Set,
+    List,
     Tuple,
     Type,
     Union,
@@ -32,7 +33,7 @@ from warnings import warn
 from boltons.iterutils import research
 from glom import Assign, Coalesce, glom, Invoke, Spec, SKIP, T
 
-from typedconfig.helpers import NS
+from typedconfig.helpers import merge_rules, NS
 from typedconfig.factory import make_typedconfig, make_validator
 from typedconfig.helpers import read_yaml, read_json, to_yaml, to_json
 
@@ -52,6 +53,7 @@ _type_spec = (
 # types for keys and paths as understood by boltons.iterutils
 _Key_t = Union[str, int]  # mapping keys and sequence index
 _Path_t = Tuple[_Key_t, ...]
+_fpaths = Union[Union[str, Path], List[Union[str, Path]]]
 
 
 class _ConfigIO(ABC):
@@ -64,15 +66,15 @@ class _ConfigIO(ABC):
     """
 
     @classmethod
-    def from_yaml(cls, yaml_path: Union[str, Path]) -> _ConfigIO:
+    def from_yaml(cls, yaml_path: _fpaths) -> _ConfigIO:
         # FIXME: type checking is ignored for the return statement because mypy
         # doesn't seem to know this is an abstract base class, and the argument
         # unpacking makes sense when instantiating any of the derived classes.
-        return cls(**read_yaml(yaml_path))  # type: ignore
+        return cls(**merge_rules(yaml_path, read_yaml))  # type: ignore
 
     @classmethod
-    def from_json(cls, json_path: Union[str, Path]) -> _ConfigIO:
-        return cls(**read_json(json_path))  # type: ignore
+    def from_json(cls, json_path: _fpaths) -> _ConfigIO:
+        return cls(**merge_rules(json_path, read_json))  # type: ignore
 
     def to_dict(self) -> Dict:
         return asdict(self)

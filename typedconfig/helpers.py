@@ -4,7 +4,7 @@ from itertools import chain
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, Iterable, List, Union
+from typing import Any, Callable, Dict, Iterable, List, TypeVar, Union
 
 import yaml
 
@@ -156,3 +156,40 @@ def merge_dicts(confs: List[Dict]) -> Dict:
         else:
             res[key] = matches[0]  # only one element
     return res
+
+
+T = TypeVar("T")
+
+
+def merge_rules(
+    fpaths: Union[T, List[T]], reader: Callable[[T], Dict],
+) -> Dict:
+    """Merge a sequence of dictionaries
+
+    Common keys at the same depth are recursively reconciled.  The newer value
+    overwrites earlier values.  The order of the keys are preserved.  When
+    merging repeated keys, the position of the first occurence is considered as
+    correct.
+
+    Note, the type `T` refers to any object that can refer to a file; e.g. a
+    file path or stream object, as long as the matching function knows how to
+    read it.
+
+    Parameters
+    ----------
+    fpaths: Union[T, List[T]]
+        Path to a rules file, or a sequence of paths
+    reader: Callable[[T], Dict]
+        Function used to read the files; should return a dictionary
+
+    Returns
+    -------
+    Dict
+        Dictionary after merging rules
+
+    """
+    if isinstance(fpaths, list):
+        conf = merge_dicts([reader(f) for f in fpaths])
+    else:
+        conf = reader(fpaths)
+    return conf
