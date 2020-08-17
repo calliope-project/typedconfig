@@ -4,6 +4,7 @@ import pytest
 import yaml
 
 from typedconfig.helpers import _Names, merge_dicts, merge_rules
+from typedconfig.parsers import get_config_t
 
 
 def test_nonexistent_module():
@@ -42,6 +43,21 @@ def test_reload():
     # pydantic.types is not loaded, so PositiveInt isn't available
     assert hasattr(NS.types, "List")
     assert not hasattr(NS.types, "PositiveInt")
+
+
+def test_set_confdir():
+    NS = _Names()
+    spec = {"path": {"type": "ConfFilePath"}}
+
+    config_t = get_config_t(spec)
+    with pytest.warns(RuntimeWarning, match=".+confdir not set.+"):
+        with pytest.raises(ValueError):
+            config_t(path="foo.yaml")
+
+    confdir = "tests/conf"
+    NS.set_confdir(confdir)
+    config_t = get_config_t(spec)
+    assert config_t.from_yaml(f"{confdir}/main.yaml").path
 
 
 def test_merge():

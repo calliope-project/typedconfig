@@ -98,6 +98,11 @@ class _Names(SimpleNamespace):
         self._types = False
         self._validators = False
 
+    def set_confdir(self, confdir: Union[str, Path]) -> None:
+        """Set the config directory for the `ConfFilePath` type"""
+        # FIXME: dirty hack
+        self.types.ConfFilePath.confdir = confdir
+
 
 NS = _Names()
 
