@@ -10,7 +10,7 @@ import pytest
 import typing_extensions
 
 from typedconfig.helpers import read_yaml
-from typedconfig.parsers import (
+from typedconfig.parsers.tree import (
     _is_node,
     _nodes,
     _is_leaf,

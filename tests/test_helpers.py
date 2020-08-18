@@ -4,7 +4,7 @@ import pytest
 import yaml
 
 from typedconfig.helpers import _Names, merge_dicts, merge_rules
-from typedconfig.parsers import get_config_t
+from typedconfig.parsers.tree import get_config_t
 
 
 def test_nonexistent_module():
