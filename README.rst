@@ -24,8 +24,8 @@ from the ruleset, which can then be used to validate a config file.
 
 .. _Calliope: https://github.com/calliope-project/calliope
 
-.. |unittests| image:: https://github.com/calliope-project/dataconfig/workflows/Unit%20tests/badge.svg
-   :target: https://github.com/calliope-project/dataconfig/actions
+.. |unittests| image:: https://github.com/calliope-project/typedconfig/workflows/Unit%20tests/badge.svg
+   :target: https://github.com/calliope-project/typedconfig/actions
 
-.. |coverage| image:: https://codecov.io/gh/calliope-project/dataconfig/branch/master/graph/badge.svg
-   :target: https://codecov.io/gh/calliope-project/dataconfig
+.. |coverage| image:: https://codecov.io/gh/calliope-project/typedconfig/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/calliope-project/typedconfig
