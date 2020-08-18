@@ -19,9 +19,15 @@ def test_nonexistent_module():
 
 def test_edit_module_list():
     NS = _Names()
-    NS._type_modules = ("typing",)
+    NS._type_modules = ["typing"]
     assert hasattr(NS.types, "List")
     assert not hasattr(NS.types, "PositiveInt")
+
+    NS.add_modules("type", ["pydantic.types"])
+    assert hasattr(NS.types, "PositiveInt")
+
+    with pytest.raises(ValueError, match="types.+"):
+        NS.add_modules("types", ["pydantic.types"])
 
 
 def test_nonconformant_module():

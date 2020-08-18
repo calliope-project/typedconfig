@@ -98,6 +98,16 @@ class _Names(SimpleNamespace):
         self._types = False
         self._validators = False
 
+    def add_modules(self, type_or_validator: str, modules: List[str]) -> None:
+        """Add custom modules to the list of modules"""
+        if type_or_validator == "type":
+            self._type_modules += modules
+        elif type_or_validator == "validator":
+            self._validator_modules += modules
+        else:
+            raise ValueError(f"{type_or_validator}: unknown module type")
+        self.reset()  # invalidate imports after adding new modules
+
     def set_confdir(self, confdir: Union[str, Path]) -> None:
         """Set the config directory for the `ConfFilePath` type"""
         # FIXME: dirty hack
