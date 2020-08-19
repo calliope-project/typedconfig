@@ -1,11 +1,4 @@
-"""Parsers for different kinds of configurations
-
-Strictly speaking, the functions provided by this module are not parsers, they
-don't parse the config file themselves.  Instead it relies on the dedicated
-file parsing libraries like `pyyaml`, `json`, etc to parse the files into a
-dictionary.  The functions in this module provide an API to traverse the nested
-dictionary and parse the config rules and dynamically generate a configuration
-type object which can be used to validate the actual config file from the user.
+"""Hierarchical parser
 
 """
 
