@@ -11,4 +11,4 @@ mkvirtualenv -r $PYDANTIC_SRC/requirements.txt pydc
 pip install $(cat requirements.txt | grep -v pydantic)
 
 declare PYTHON_VERSION=$(python -c 'import sys;print("{}.{}".format(*sys.version_info[:2]))')
-ln -s $PYDANTIC_SRC/pydantic $VIRTUAL_ENV/lib/python3.8/site-packages
+ln -s $PYDANTIC_SRC/pydantic $VIRTUAL_ENV/lib/python${PYTHON_VERSION}/site-packages
