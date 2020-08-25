@@ -4,7 +4,18 @@ from itertools import chain
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, Iterable, List, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Sequence,
+    TextIO,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import yaml
 
@@ -98,12 +109,14 @@ class _Names(SimpleNamespace):
         self._types = False
         self._validators = False
 
-    def add_modules(self, type_or_validator: str, modules: List[str]) -> None:
+    def add_modules(
+        self, type_or_validator: str, modules: Sequence[str]
+    ) -> None:
         """Add custom modules to the list of modules"""
         if type_or_validator == "type":
-            self._type_modules += modules
+            self._type_modules += list(modules)
         elif type_or_validator == "validator":
-            self._validator_modules += modules
+            self._validator_modules += list(modules)
         else:
             raise ValueError(f"{type_or_validator}: unknown module type")
         self.reset()  # invalidate imports after adding new modules
@@ -141,7 +154,7 @@ def to_json(obj, fpath: Union[str, Path]):  # pragma: no cover, trivial
         json.dump(obj, fp)
 
 
-def merge_dicts(confs: List[Dict]) -> Dict:
+def merge_dicts(confs: Sequence[Dict]) -> Dict:
     """Merge a sequence of dictionaries
 
     Common keys at the same depth are recursively reconciled.  The newer value
@@ -151,7 +164,7 @@ def merge_dicts(confs: List[Dict]) -> Dict:
 
     Parameters
     ----------
-    confs: List[Dict]
+    confs: Sequence[Dict]
         A list of dictionaries
 
     Returns
@@ -173,11 +186,12 @@ def merge_dicts(confs: List[Dict]) -> Dict:
     return res
 
 
-T = TypeVar("T")
+_file_t = TypeVar("_file_t", str, Path, TextIO)
 
 
 def merge_rules(
-    fpaths: Union[T, List[T]], reader: Callable[[T], Dict],
+    fpaths: Union[_file_t, List[_file_t], Tuple[_file_t]],
+    reader: Callable[[_file_t], Dict],
 ) -> Dict:
     """Merge a sequence of dictionaries
 
@@ -192,7 +206,7 @@ def merge_rules(
 
     Parameters
     ----------
-    fpaths: Union[T, List[T]]
+    fpaths: Union[T, List[T], Tuple[T]]
         Path to a rules file, or a sequence of paths
     reader: Callable[[T], Dict]
         Function used to read the files; should return a dictionary
@@ -203,7 +217,7 @@ def merge_rules(
         Dictionary after merging rules
 
     """
-    if isinstance(fpaths, list):
+    if isinstance(fpaths, (list, tuple)):
         conf = merge_dicts([reader(f) for f in fpaths])
     else:
         conf = reader(fpaths)

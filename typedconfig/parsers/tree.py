@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
-    Sequence,
-    Set,
     List,
+    Set,
     Tuple,
     Type,
     Union,
@@ -141,7 +141,7 @@ def _nodes(conf: Dict) -> Set[_Path_t]:
     return {path for path, _ in research(conf, query=_is_node)}
 
 
-def _is_leaf(path: _Path_t, paths: Sequence[_Path_t]) -> bool:
+def _is_leaf(path: _Path_t, paths: Collection[_Path_t]) -> bool:
     """Detect a leaf node
 
     NOTE: if a path overlaps with another path (given they are not the same),
@@ -168,7 +168,7 @@ def _is_leaf(path: _Path_t, paths: Sequence[_Path_t]) -> bool:
     return not any(set(path).issubset(q) for q in paths if path != q)
 
 
-def _leaves(paths: Sequence[_Path_t]) -> Set[_Path_t]:
+def _leaves(paths: Collection[_Path_t]) -> Set[_Path_t]:
     """Filter the list of paths for leaf nodes.
 
     Parameters
@@ -300,7 +300,7 @@ def _spec_to_type(
               # ...
           }
 
-    bases : Tuple[Type]
+    bases : Tuple[Type, ...]
         Base classes
 
     Returns
