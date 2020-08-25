@@ -14,7 +14,7 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Iterable,
+    Sequence,
     Set,
     List,
     Tuple,
@@ -141,7 +141,7 @@ def _nodes(conf: Dict) -> Set[_Path_t]:
     return {path for path, _ in research(conf, query=_is_node)}
 
 
-def _is_leaf(path: _Path_t, paths: Iterable[_Path_t]) -> bool:
+def _is_leaf(path: _Path_t, paths: Sequence[_Path_t]) -> bool:
     """Detect a leaf node
 
     NOTE: if a path overlaps with another path (given they are not the same),
@@ -154,7 +154,7 @@ def _is_leaf(path: _Path_t, paths: Iterable[_Path_t]) -> bool:
     ----------
     path : _Path_t
         Path to the node
-    paths : Iterable[_Path_t]
+    paths : Sequence[_Path_t]
         Set of paths to compare against to determine if this is a leaf node
 
     Returns
@@ -168,12 +168,12 @@ def _is_leaf(path: _Path_t, paths: Iterable[_Path_t]) -> bool:
     return not any(set(path).issubset(q) for q in paths if path != q)
 
 
-def _leaves(paths: Iterable[_Path_t]) -> Set[_Path_t]:
+def _leaves(paths: Sequence[_Path_t]) -> Set[_Path_t]:
     """Filter the list of paths for leaf nodes.
 
     Parameters
     ----------
-    paths : Iterable[_Path_t]
+    paths : Sequence[_Path_t]
         List of paths
 
     Returns
