@@ -210,7 +210,9 @@ def _type(value: Dict) -> Type:
     type_key = _type_spec[0]
     opts = value.get(_type_spec[1], None)
     if opts and isinstance(opts, (tuple, list, set)):
-        config_t = getattr(NS.types, value[type_key])[tuple(opts)]
+        config_t = getattr(NS.types, value[type_key])[
+            tuple(getattr(NS.types, i, i) for i in opts)
+        ]
     elif opts and isinstance(opts, dict):
         config_t = getattr(NS.types, value[type_key])(**opts)
     else:
