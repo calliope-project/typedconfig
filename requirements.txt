@@ -1,5 +1,6 @@
 boltons
 glom>=19.10
+networkx
 pydantic
-typing_extensions
 pyyaml
+typing_extensions
