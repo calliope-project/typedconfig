@@ -384,13 +384,13 @@ def _update_inplace(
     return update_inplace
 
 
-def get_config_t(conf: Dict) -> Type:
+def get_config_t(rules: Dict) -> Type:
     """Read the config dictionary and create the config type"""
-    paths = _nodes(conf)
+    paths = _nodes(rules)
     leaves = _leaves(paths)
 
     # create a copy of the dictionary, and recursively update the leaf nodes
-    _conf = reduce(_update_inplace(_str_to_spec), leaves, deepcopy(conf))
+    _conf = reduce(_update_inplace(_str_to_spec), leaves, deepcopy(rules))
 
     # walk up the tree, and process the "new" leaf nodes.  using a set takes
     # care of duplicates.
@@ -400,3 +400,8 @@ def get_config_t(conf: Dict) -> Type:
         branches = {path[:-1] for path in branches if path[:-1]}
 
     return _spec_to_type("config", _conf, bases=(_ConfigIO,))
+
+
+def get_config(rules: _fpaths, confs: _fpaths):
+    config_t = get_config_t(merge_rules(rules, read_yaml))
+    return config_t.from_yaml(confs)

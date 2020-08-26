@@ -20,7 +20,7 @@ from typing import (
 import yaml
 
 
-class _Names(SimpleNamespace):
+class _Names:
     """This is a namespace class used to create and hold several namespaces
 
     The sub-namespaces are properties of this class, and are instantiated on
@@ -38,8 +38,6 @@ class _Names(SimpleNamespace):
     If you want to add your custom modules, they can be included by adding to
     the list of modules _before_ accessing the sub-namespaces.
 
-    >>> isinstance(NS, SimpleNamespace)
-    True
     >>> isinstance(NS.types, SimpleNamespace)
     True
     >>> isinstance(NS.validators, SimpleNamespace)
