@@ -67,10 +67,11 @@ def test_set_confdir():
 
 
 def test_merge():
+    # merg_dicts is tested in docstring
     d1 = {"a": 1, "b": {"c": 3, "d": 4}, "e": True}
     d2 = {"c": 3, "b": {"e": 5, "d": 40}, "e": {"g": True, "h": "foo"}}
-    # - b.d tests overwriting values
-    # - e & b.d tests order
+    # - e & b.d tests overwriting values
+    # - b, e & b.d tests key ordering
     # - e & e.* tests adding new sub-keys
     expected = {
         "a": 1,
@@ -78,11 +79,6 @@ def test_merge():
         "e": {"g": True, "h": "foo"},
         "c": 3,
     }
-    result = merge_dicts([d1, d2])
-    assert result == expected
-    # check order
-    assert result.keys() == expected.keys()
-    assert result["b"].keys() == expected["b"].keys()
 
     streams = [StringIO(), StringIO()]
     for i, d in enumerate((d1, d2)):
@@ -92,5 +88,5 @@ def test_merge():
     result = merge_rules(streams, yaml.safe_load)
     assert result == expected
     # check order
-    assert result.keys() == expected.keys()
-    assert result["b"].keys() == expected["b"].keys()
+    assert list(result) == list(expected)
+    assert list(result["b"]) == list(expected["b"])

@@ -170,6 +170,29 @@ def merge_dicts(confs: Sequence[Dict]) -> Dict:
     Dict
         Merged dictionary
 
+    Examples
+    --------
+
+    - e & b.d tests overwriting values
+    - b, e & b.d tests key ordering
+    - e & e.* tests adding new sub-keys
+
+    >>> d1 = {"a": 1, "b": {"c": 3, "d": 4}, "e": True}
+    >>> d2 = {"c": 3, "b": {"e": 5, "d": 40}, "e": {"g": True, "h": "foo"}}
+    >>> expected = {
+    ...     "a": 1,
+    ...     "b": {"c": 3, "d": 40, "e": 5},
+    ...     "e": {"g": True, "h": "foo"},
+    ...     "c": 3,
+    ... }
+    >>> result = merge_dicts([d1, d2])
+    >>> result == expected
+    True
+    >>> list(result) == list(expected)  # key ordering preserved
+    True
+    >>> list(result["b"]) == list(expected["b"])  # key ordering preserved
+    True
+
     """
     if not all(map(lambda obj: isinstance(obj, dict), confs)):
         return confs[-1]
