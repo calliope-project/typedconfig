@@ -19,6 +19,7 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 from warnings import warn
@@ -46,7 +47,8 @@ _type_spec = (
 # types for keys and paths as understood by boltons.iterutils
 _Key_t = Union[str, int]  # mapping keys and sequence index
 _Path_t = Tuple[_Key_t, ...]
-_fpaths = Union[Union[str, Path], List[Union[str, Path]]]
+_file_t = TypeVar("_file_t", str, Path)
+_fpaths = Union[_file_t, List[_file_t], Tuple[_file_t]]
 
 
 class _ConfigIO(ABC):
