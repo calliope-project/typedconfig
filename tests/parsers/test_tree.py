@@ -21,6 +21,9 @@ from typedconfig.parsers.tree import (
     _str_to_spec,
     _spec_to_type,
     get_config_t,
+    _optional_nodes,
+    _resolve_optional,
+    get_config,
 )
 
 
@@ -238,3 +241,45 @@ def test_config_t():
     assert config.run and config.model
 
     shutil.rmtree(log_dir)
+
+
+def test_optional():
+    rules = {
+        "foo": {"type": "int", "default": 0},
+        "bar": {"type": "int", "optional": True},
+        "baz": {"type": "float"},
+        "parent": {
+            "child": {"type": "bool", "default": False},
+            "cousin": {"type": "bool", "optional": True},
+        },
+        "array1": {"type": "List", "opts": ["int"]},
+        "array2": {"type": "List", "opts": ["int"], "optional": True},
+    }
+
+    expected = {("bar",), ("parent", "cousin"), ("array2",)}
+    result = _optional_nodes(rules)
+    assert result == expected
+
+    conf = {
+        "foo": 42,
+        # "bar" is optional, and absent
+        "baz": 3.14,
+        "parent": {
+            # "child", mandatory, but has a default, so can be missing
+            "cousin": True  # optional, and present
+        },
+        "array1": [7, 49],
+        "array2": [-3, 3],  # optional, and present
+    }
+
+    result = _resolve_optional(rules, conf)
+    assert "bar" not in result
+    assert "cousin" in result["parent"]
+    assert "array2" in result
+
+    config = get_config_t(result)(**conf)
+
+    assert not hasattr(config, "bar")
+    assert config.parent.child == False
+    assert config.parent.cousin == True
+    assert config.array2 == [-3, 3]

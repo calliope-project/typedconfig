@@ -25,7 +25,7 @@ from typing import (
 from warnings import warn
 
 from boltons.iterutils import research
-from glom import Assign, Coalesce, glom, Invoke, Spec, SKIP, T
+from glom import Assign, Coalesce, delete, glom, Invoke, Spec, SKIP, T
 
 from typedconfig.helpers import merge_rules, NS
 from typedconfig.factory import make_typedconfig, make_validator
@@ -40,6 +40,8 @@ _type_spec = (
     "validator_params",
     "root_validator",
     "default",
+    "optional",
+    # following keys are used for documentation
     "id",
     "doc",
 )
@@ -404,6 +406,61 @@ def get_config_t(rules: Dict) -> Type:
     return _spec_to_type("config", _conf, bases=(_ConfigIO,))
 
 
-def get_config(rules: _fpaths, confs: _fpaths):
-    config_t = get_config_t(merge_rules(rules, read_yaml))
-    return config_t.from_yaml(confs)
+def _is_optional(path: _Path_t, key: _Key_t, value: Any) -> bool:
+    """Detect if a node is optional
+
+    This checks if a key is a node, and if it's an optional attribute.
+
+    Parameters
+    ----------
+    path : _Path_t
+        Path to node
+    key : _Key_t
+        Configuration key
+    value
+        The configuration value
+
+    Returns
+    -------
+    bool
+        If a node corresponds to an optional attribute.
+
+    """
+    opt_key = _type_spec[7]
+    if _is_node(path, key, value):
+        return value.get(opt_key, False)
+    return False
+
+
+def _optional_nodes(conf: Dict) -> Set[_Path_t]:
+    """Filter the list of paths for nodes which are optional
+
+    Parameters
+    ----------
+    conf : Dict
+        Config dictionary
+
+    Returns
+    -------
+    Set[_Path_t]
+        List of paths to nodes
+
+    """
+    return {path for path, _ in research(conf, query=_is_optional)}
+
+
+def _resolve_optional(rules: Dict, conf: Dict) -> Dict:
+    """Go through the rules and drop optional keys that are absent in conf"""
+    all_nodes = _nodes(conf)  # this is some superset of valid keys
+    for node in _optional_nodes(rules):
+        if node not in all_nodes:
+            # delete unused optional rules
+            delete(rules, ".".join(map(str, node)))
+    return rules
+
+
+def get_config(rule_files: _fpaths, conf_files: _fpaths):
+    rules = merge_rules(rule_files, read_yaml)
+    confs = merge_rules(conf_files, read_yaml)
+    config_t = get_config_t(_resolve_optional(rules, confs))
+    return config_t(**confs)
