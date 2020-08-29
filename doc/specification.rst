@@ -14,18 +14,25 @@ The basic config item has the following properties:
 
 - ``validator``: function bound to this config item that checks validity
 
+- ``validator_opts``: options for how the validator behaves
+
 - ``validator_params``: parameters to bind to the validator function
   scope; a dictionary, where each key value pair is available in the
   function as a local variable
 
-- ``validator_opts``: options for how the validator behaves
-
 - ``root_validator``: boolean, if true, treat the above function as a
   root validator
 
-- ``doc``: config documentation
+- ``default``: default value, this value is used when the
+  corresponding key is missing the the actual config.
+
+- ``optional``: boolean, if true, the rules can be compared with the
+  actual config, and if the attribute is missing in the config, it is
+  dropped from the validation process and the config object.
 
 - ``id``: currently unused
+
+- ``doc``: config documentation
 
 The default parser expects the config items are organised
 hierarchically (like an inverted tree); the parser allows multiple
