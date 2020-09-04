@@ -142,6 +142,17 @@ def test_validator_getter():
     name, validator = _validator(key, spec).popitem()  # 'key' is ignored
     assert hasattr(validator, "__root_validator_config__")
 
+    spec = {
+        "validator": ["range_check", "threshold"],
+        "validator_params": [{"min_key": "min"}, {"threshold": 10}]
+        # "validator_opts":  FIXME:
+    }
+    validators = _validator(key, spec)
+    assert all(name in str(_val.__func__) for name, _val in validators.items())
+    assert all(
+        v.__validator_config__[0] == (key,) for v in validators.values()
+    )
+
 
 def test_spec_parsing():
     # see `typedconfig.validators` for the definition of `threshold`
@@ -171,6 +182,27 @@ def test_spec_parsing():
     # custom validator with the threshold set to 5
     with pytest.raises(ValueError, match="above threshold:.+"):
         config_t(foo=6)
+
+    spec = {
+        "foo": {
+            "type": "PositiveFloat",
+            "validator": ["threshold", "mult_of"],
+            "validator_params": [{"threshold": 15}, {"factor": 3}],
+        }
+    }
+    spec["foo"] = _str_to_spec("foo", spec["foo"])
+    config_t = _spec_to_type("foo", spec)
+
+    conf = config_t(foo=9)
+    assert isinstance(config_t, type)
+    assert conf.foo == 9
+
+    with pytest.raises(ValueError, match="not a multiple"):
+        config_t(foo=10)
+    with pytest.raises(ValueError, match="above threshold"):
+        config_t(foo=16)
+    with pytest.raises(ValueError, match="above threshold"):
+        config_t(foo=18)
 
 
 def test_spec_parsing_nested():

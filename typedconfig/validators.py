@@ -1,4 +1,11 @@
-__all__ = ["range_check", "quadrant", "threshold", "zero_sum", "sum_by_name"]
+__all__ = [
+    "range_check",
+    "quadrant",
+    "threshold",
+    "mult_of",
+    "zero_sum",
+    "sum_by_name",
+]
 
 
 def range_check(cls, _max, values, *, min_key):
@@ -21,6 +28,12 @@ def threshold(cls, val, values, *, threshold):
     if val > threshold:
         raise ValueError(f"above threshold: {val} > {threshold}")
     return val
+
+
+def mult_of(cls, val, values, *, factor):
+    if val % factor == 0:
+        return val
+    raise ValueError(f"{val} is not a multiple of {factor}")
 
 
 def zero_sum(cls, values, *, total):

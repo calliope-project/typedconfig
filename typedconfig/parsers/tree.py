@@ -248,11 +248,23 @@ def _validator(key: str, value: Dict) -> Dict[str, classmethod]:
 
     """
     _1, _2, val_key, opts_key, params_key, is_root, *__ = _type_spec
-    func = getattr(NS.validators, value[val_key])
+    if isinstance(value[val_key], str):
+        funcs = [
+            (getattr(NS.validators, value[val_key]), value.get(params_key, {}))
+        ]
+    else:
+        funcs = [
+            (getattr(NS.validators, fn), pars)
+            for fn, pars in zip(value[val_key], value.get(params_key, {}))
+        ]
     key = "" if value.get(is_root, False) else key
     opts = value.get(opts_key, {})
-    params = value.get(params_key, {})
-    return make_validator(func, key, opts=opts, **params)
+    return dict(
+        chain.from_iterable(
+            make_validator(fn, key, opts=opts, **pars).items()
+            for fn, pars in funcs
+        )
+    )
 
 
 def _str_to_spec(key: str, value: Dict) -> Dict:

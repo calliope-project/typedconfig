@@ -78,11 +78,19 @@ Requirements
 
         raise ValueError  # , TypeError, or ValidationError
 
+  **NOTE:** multiple validators can be specified for a key with a list
+  of validator names instead of just the name.  If the validators
+  require parameters, they have to be similarly specified in a list.
+  If one of the validators do not take parameters, an empty dictionary
+  can be used in the list of parameters at the corresponding position.
+
+  Note that validator options cannot be customised like this, this
+  also means mixing regular validators with a root validator is also
+  not possible.
+
   **NOTE:** eventhough root validators are not bound to a specific
   key, they need to be specified under a key.  It does not matter
-  which key, as long as it is at the same level.  Since there is no
-  way to specify multiple validator functions for a key, you will need
-  to associate the root validator to a key that does not have one.
+  which key, as long as it is at the same level.
 
 - **NOTE:** The function signatures are not enforced when building the
   config type.

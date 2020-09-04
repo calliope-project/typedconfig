@@ -1,7 +1,6 @@
 import keyword
 import types
-from typing import Callable, Dict
-from uuid import uuid4
+from typing import Any, Callable, Dict
 
 from pydantic import root_validator, validator
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -116,9 +115,32 @@ def make_validator(
 
     wrapper = wrapper_key if key else wrapper_root
 
-    # pydantic keeps a global registry of all validators as <module>.<name>,
-    # and prevents reuse unless explicitly overridden with allow_reuse=True
-    wrapper.__module__ = f"<dynamic-{uuid4().hex}>"
-    wrapper.__qualname__ = func.__name__
+    def stringify(params: Dict[str, Any]) -> str:
+        return f"[{','.join(f'{k}={v}' for k, v in params.items())}]"
+
+    # NOTE: pydantic validates a dataclass by the creating a new model
+    # (subclass of BaseModel) from the type annotations, and validator methods
+    # in the dataclass definition.  BaseModel specifies a custom metaclass,
+    # which internally uses a data structure (ValidatorGroup) that aggregates
+    # all validators and groups them by the class attribute they are associated
+    # with.  Unfortunately when retrieving the validators from the data
+    # structure, it returns a dictionary where the key is func.__name__.  This
+    # means the wrapping function's name has to be uniquified.
+    #
+    # Strictly speaking, adding the parameters to the name is not necessary,
+    # but it is there for easier debugging when required.
+    wrapper.__name__ = f"{key}_" + func.__name__ + stringify(params)
+
+    # NOTE: pydantic keeps a global registry of all validators as
+    # <module>.<qualified name>[*] and prevents reuse unless explicitly
+    # overridden with allow_reuse=True; see _prepare_validator in
+    # pydantic/class_validators.py.  We still set the qualified name to be
+    # consistent with the name.
+    #
+    # [*] to understand qualified name (<type>.__qualname__), see:
+    # https://docs.python.org/3/glossary.html#term-qualified-name
+    wrapper.__qualname__ = wrapper.__name__
+    opts = {"allow_reuse": True, **opts}
+
     decorator = validator(key, **opts) if key else root_validator(**opts)
     return {func.__name__: decorator(wrapper)}
