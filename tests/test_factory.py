@@ -143,7 +143,7 @@ def test_conditional_keys():
         cost_class={"monetary": 1}, sense="minimize", moreopts="foo"
     )
     optimiser_settings = Objective_t(
-        objective="minmax_cost_optimization", objective_options=obj_opts,
+        objective="minmax_cost_optimization", objective_options=obj_opts
     )
     assert optimiser_settings.objective_options.cost_class
     assert optimiser_settings.objective_options.sense
@@ -177,7 +177,7 @@ def test_nested_config():
         cost_class={"monetary": 1}, sense="minimize", moreopts=None
     )
     optimiser_settings = Objective_t(
-        objective="minmax_cost_optimization", objective_options=obj_opts,
+        objective="minmax_cost_optimization", objective_options=obj_opts
     )
     config = Config_t(run=run, range=rng, optimise=optimiser_settings)
 

@@ -383,9 +383,7 @@ def _nested_type(key: str, value: Dict[str, Dict]) -> Dict:
 def _update_inplace(
     func: Callable[[str, Dict], Dict]
 ) -> Callable[[Dict, _Path_t], Dict]:
-    """Bind the given function to `update_inplace` defined below
-
-    """
+    """Bind the given function to `update_inplace` defined below"""
 
     def update_inplace(_conf: Dict, path: _Path_t) -> Dict:
         """Invoke the bound function to reassign matching items

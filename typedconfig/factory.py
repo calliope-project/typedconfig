@@ -46,7 +46,7 @@ def make_typedconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
     anns = {}
     for item in fields:
         if len(item) == 2:
-            name, tp, = item
+            name, tp = item
         elif len(item) == 3:
             # FIXME: field spec is ignored, see _process_class in
             # pydantic.dataclasses
