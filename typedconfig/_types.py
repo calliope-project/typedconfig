@@ -3,12 +3,11 @@
 # import standard library types for singleton namespace to import
 from builtins import bool, int, float, str
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, Type
+from typing import Any, Callable, Dict, Generator
 from warnings import warn
 
 from pydantic import errors
-from pydantic.dataclasses import dataclass as pydantic_dataclass
-from pydantic.types import confloat, conint, FilePath
+from pydantic.color import Color
 from pydantic.validators import path_validator
 
 
@@ -18,34 +17,9 @@ __all__ = [
     "float",
     "str",
     "Path",
-    "unitfloat",
-    "unitint",
-    "FileWithSubset",
+    "Color",
     "ConfFilePath",
 ]
-
-
-def unitfloat(unit: str, **kwargs) -> Type[float]:
-    namespace = dict(unit=unit)
-    confloat_t = confloat(**kwargs)
-    return type("UnitFloat", (confloat_t,), namespace)
-
-
-def unitint(unit: str, **kwargs,) -> Type[int]:
-    namespace = dict(unit=unit)
-    conint_t = conint(**kwargs)
-    return type("UnitInt", (conint_t,), namespace)
-
-
-@pydantic_dataclass
-class FileWithSubset:
-    filepath: FilePath
-    column: str
-
-    @classmethod
-    def from_string(cls, string):
-        filepath, column = string.rsplit(":", 1)
-        return cls(filepath=filepath, column=column)
 
 
 AnyCallable = Callable[..., Any]
