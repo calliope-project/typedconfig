@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
-    Collection,
     Dict,
+    Iterable,
     List,
     Set,
     Tuple,
@@ -25,7 +25,7 @@ from typing import (
 from warnings import warn
 
 from boltons.iterutils import research
-from glom import Assign, Coalesce, delete, glom, Invoke, Spec, SKIP, T
+from glom import Assign, Coalesce, Delete, glom, Invoke, Spec, SKIP, T
 
 from typedconfig.helpers import merge_rules, NS
 from typedconfig.factory import make_typedconfig, make_validator
@@ -42,7 +42,6 @@ _type_spec = (
     "default",
     "optional",
     # following keys are used for documentation
-    "id",
     "doc",
 )
 
@@ -98,6 +97,25 @@ _ConfigIO.to_yaml.__doc__ = _ConfigIO_to_file_doc_.format("YAML")
 _ConfigIO.to_json.__doc__ = _ConfigIO_to_file_doc_.format("JSON")
 
 
+def _filter(
+    nested: Dict, test: Callable[[_Path_t, _Key_t, Any], bool]
+) -> Set[_Path_t]:
+    """Filter the list of paths with `test`
+
+    Parameters
+    ----------
+    conf : Dict
+        Config dictionary
+
+    Returns
+    -------
+    Set[_Path_t]
+        List of paths that pass `test`
+
+    """
+    return {path for path, _ in research(nested, query=test)}
+
+
 def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
     """Detect a node in the configuration hierarchy
 
@@ -128,56 +146,50 @@ def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
     return all(type_key not in full_path for type_key in _type_spec)
 
 
-def _nodes(conf: Dict) -> Set[_Path_t]:
-    """Filter the list of paths for nodes
-
-    Parameters
-    ----------
-    conf : Dict
-        Config dictionary
-
-    Returns
-    -------
-    Set[_Path_t]
-        List of paths to nodes
-
-    """
-    return {path for path, _ in research(conf, query=_is_node)}
-
-
-def _is_leaf(path: _Path_t, paths: Collection[_Path_t]) -> bool:
+def _is_leaf(path: _Path_t, key: _Key_t, value: Any) -> bool:
     """Detect a leaf node
 
-    NOTE: if a path overlaps with another path (given they are not the same),
-    the shorter path is not a leaf node.  The implmentation assumes a path
-    constitutes of unique keys:
-    - (k1, k2, k3) Yes
-    - (k1, k2, k1) No
+    Test criteria:
+    - it's a node,
+    - value is a dictionary
+    - the dictionary has the key 'type'
 
     Parameters
     ----------
     path : _Path_t
-        Path to the node
-    paths : Sequence[_Path_t]
-        Set of paths to compare against to determine if this is a leaf node
+        Path to node
+    key : _Key_t
+        Configuration key
+    value
+        The configuration value
 
     Returns
     -------
     bool
-        Leaf node or not
+        A leaf node or not
 
     """
-    if path not in paths:
-        return False
-    return not any(set(path).issubset(q) for q in paths if path != q)
+    type_key = _type_spec[0]
+    return (
+        _is_node(path, key, value)
+        and isinstance(value, dict)
+        and type_key in value
+    )
 
 
-def _leaves(paths: Collection[_Path_t]) -> Set[_Path_t]:
-    """Filter the list of paths for leaf nodes.
+def _leaf_subset(paths: Iterable[_Path_t]) -> Set[_Path_t]:
+    """From a set of paths, find the paths that are leaves (no further branches).
+
+    NOTE: if a path overlaps with another (given they are not the same), the
+    shorter path has branches ahead, and is not in the leaf subset.  The
+    implmentation assumes a path constitutes of unique keys:
+
+    - path: (k1, k2, k3)
+    - not path: (k1, k2, k1)
 
     Parameters
     ----------
-    paths : Sequence[_Path_t]
+    paths : Collection[_Path_t]
         List of paths
 
     Returns
@@ -186,7 +198,11 @@ def _leaves(paths: Collection[_Path_t]) -> Set[_Path_t]:
         List of paths to leaf nodes
 
     """
-    return {p for p in paths if _is_leaf(p, paths)}
+
+    def __is_leaf(path: _Path_t) -> bool:
+        return not any(set(path).issubset(q) for q in paths if path != q)
+
+    return {p for p in paths if __is_leaf(p)}
 
 
 def _path_to_glom_spec(path: _Path_t) -> str:
@@ -398,20 +414,25 @@ def _update_inplace(
     return update_inplace
 
 
-def get_config_t(rules: Dict) -> Type:
-    """Read the config dictionary and create the config type"""
-    paths = _nodes(rules)
-    leaves = _leaves(paths)
+def get_spec(rules: Dict) -> Tuple[Dict[str, Dict], Set, Set]:
+    paths = _filter(rules, _is_node)
+    leaves = _filter(rules, _is_leaf)
 
     # create a copy of the dictionary, and recursively update the leaf nodes
-    _conf = reduce(_update_inplace(_str_to_spec), leaves, deepcopy(rules))
+    spec = reduce(_update_inplace(_str_to_spec), leaves, deepcopy(rules))
+    return spec, paths, leaves
+
+
+def get_config_t(rules: Dict) -> Type:
+    """Read the config dictionary and create the config type"""
+    _conf, paths, leaves = get_spec(rules)
 
     # walk up the tree, and process the "new" leaf nodes.  using a set takes
     # care of duplicates.
-    branches: Set[_Path_t] = _leaves(paths - leaves)
+    branches: Set[_Path_t] = _leaf_subset(paths - leaves)
     while branches:
         _conf = reduce(_update_inplace(_nested_type), branches, _conf)
-        branches = {path[:-1] for path in branches if path[:-1]}
+        branches = _leaf_subset(path[:-1] for path in branches if path[:-1])
 
     return _spec_to_type("config", _conf, bases=(_ConfigIO,))
 
@@ -437,35 +458,48 @@ def _is_optional(path: _Path_t, key: _Key_t, value: Any) -> bool:
 
     """
     opt_key = _type_spec[7]
-    if _is_node(path, key, value):
-        return value.get(opt_key, False)
-    return False
+    return _is_leaf(path, key, value) and value.get(opt_key, False)
 
 
-def _optional_nodes(conf: Dict) -> Set[_Path_t]:
-    """Filter the list of paths for nodes which are optional
+def _is_mandatory(path: _Path_t, key: _Key_t, value: Any) -> bool:
+    """Detect if a node is mandatory
+
+    NOTE: This is not trivially the opposite of _is_optional because not all
+    paths represent nodes, and simply negating _is_optional would include paths
+    that are not nodes.
 
     Parameters
     ----------
-    conf : Dict
-        Config dictionary
+    path : _Path_t
+        Path to node
+    key : _Key_t
+        Configuration key
+    value
+        The configuration value
 
     Returns
     -------
-    Set[_Path_t]
-        List of paths to nodes
+    bool
+        If a node is a mandatory attribute.
 
     """
-    return {path for path, _ in research(conf, query=_is_optional)}
+    opt_key = _type_spec[7]
+    return _is_leaf(path, key, value) and (not value.get(opt_key, False))
 
 
 def _resolve_optional(rules: Dict, conf: Dict) -> Dict:
     """Go through the rules and drop optional keys that are absent in conf"""
-    all_nodes = _nodes(conf)  # this is some superset of valid keys
-    for node in _optional_nodes(rules):
-        if node not in all_nodes:
+    # leaves defined in rules
+    leaves = _filter(rules, _is_leaf)
+    # keys present in config; also contains keys from dictionary that are part
+    # of the config, e.g. validator_params, or keyword options to type
+    keys = _filter(conf, _is_node)
+    # valid_leaves ∩ keys = valid_leaves present in config
+    present = leaves.intersection(keys)
+    for node in _filter(rules, _is_optional):
+        if node not in present:
             # delete unused optional rules
-            delete(rules, ".".join(map(str, node)))
+            glom(rules, Delete(_path_to_glom_spec(node)))
     return rules
 
 

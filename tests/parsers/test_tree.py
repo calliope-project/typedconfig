@@ -11,23 +11,24 @@ import typing_extensions
 
 from typedconfig.helpers import read_yaml
 from typedconfig.parsers.tree import (
+    _filter,
     _is_node,
-    _nodes,
     _is_leaf,
-    _leaves,
+    _is_optional,
+    _is_mandatory,
+    _leaf_subset,
     _path_to_glom_spec,
     _type,
     _validator,
     _str_to_spec,
     _spec_to_type,
     get_config_t,
-    _optional_nodes,
     _resolve_optional,
     get_config,
 )
 
 
-def test_nodes():
+def test_filter():
     # FIXME: generate examples
     conf = {
         "foo": {
@@ -38,6 +39,7 @@ def test_nodes():
             },
         },
         "bla": {"eg": "str"},
+        "kaa": {"boom": {"type": str, "optional": True}},
     }
     nodes = [
         ("foo",),
@@ -47,6 +49,8 @@ def test_nodes():
         ("foo", "baz", "alt"),
         ("bla",),
         ("bla", "eg"),
+        ("kaa",),
+        ("kaa", "boom"),
     ]
     not_nodes = [
         ("foo", "bar", "type"),
@@ -55,15 +59,52 @@ def test_nodes():
     ]
 
     def isnode(path):
-        return _is_node(path, path[-1], glom(conf, ".".join(path)))
+        return _is_node(path, path[-1], glom(conf, _path_to_glom_spec(path)))
 
     assert all(list(map(isnode, nodes)))
     assert not any(list(map(isnode, not_nodes)))
+    assert _filter(conf, _is_node) == set(nodes)
 
-    assert _nodes(conf) == set(nodes)
+    leaves = [("foo", "bar"), ("foo", "baz", "alt"), ("kaa", "boom")]
+    not_leaves = [
+        ("foo", "baz"),
+        ("foo", "baz", "bah"),
+        ("bla", "eg"),
+        ("foo", "bar", "type"),
+    ]
+
+    def isleaf(path):
+        return _is_leaf(path, path[-1], glom(conf, _path_to_glom_spec(path)))
+
+    assert all(list(map(isleaf, leaves)))
+    assert not any(list(map(isleaf, not_leaves)))
+    assert _filter(conf, _is_leaf) == set(leaves)
+
+    optional = [("kaa", "boom")]
+    not_optional = set(leaves) - set(optional)
+
+    def isoptional(path):
+        return _is_optional(
+            path, path[-1], glom(conf, _path_to_glom_spec(path))
+        )
+
+    assert all(list(map(isoptional, optional)))
+    assert not any(list(map(isoptional, not_optional)))
+    assert not any(list(map(isoptional, not_leaves)))
+    assert _filter(conf, _is_optional) == set(optional)
+
+    def ismandatory(path):
+        return _is_mandatory(
+            path, path[-1], glom(conf, _path_to_glom_spec(path))
+        )
+
+    assert all(list(map(ismandatory, not_optional)))
+    assert not any(list(map(ismandatory, optional)))
+    assert not any(list(map(ismandatory, not_leaves)))
+    assert _filter(conf, _is_mandatory) == set(not_optional)
 
 
-def test_leaves():
+def test_leaf_subset():
     # FIXME: generate examples
     paths = [
         ("foo",),
@@ -73,12 +114,7 @@ def test_leaves():
         ("foo", "bar", 1, "baz"),
         ("foo", "bar", 1, "bah"),
     ]
-
-    assert _is_leaf(("foo", "bar", 1, "baz"), paths)
-    assert not _is_leaf(("foo", "bar", 1), paths)
-    assert not _is_leaf(("not", "there"), paths)
-
-    result = _leaves(paths)
+    result = _leaf_subset(paths)
     expected = {
         ("foo", "bar", 0),
         ("foo", "bar", 1, "baz"),
@@ -289,7 +325,7 @@ def test_optional():
     }
 
     expected = {("bar",), ("parent", "cousin"), ("array2",)}
-    result = _optional_nodes(rules)
+    result = _filter(rules, _is_optional)
     assert result == expected
 
     conf = {
