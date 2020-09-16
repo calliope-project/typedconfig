@@ -26,6 +26,7 @@ from warnings import warn
 
 from boltons.iterutils import research
 from glom import Assign, Coalesce, Delete, glom, Invoke, Spec, SKIP, T
+from glom import Path as gPath
 
 from typedconfig.helpers import merge_rules, NS
 from typedconfig.factory import make_typedconfig, make_validator
@@ -203,26 +204,6 @@ def _leaf_subset(paths: Iterable[_Path_t]) -> Set[_Path_t]:
         return not any(set(path).issubset(q) for q in paths if path != q)
 
     return {p for p in paths if __is_leaf(p)}
-
-
-def _path_to_glom_spec(path: _Path_t) -> str:
-    """Accepts a path, and returns the glom string spec.
-
-    This function converts a tuple based path used with `boltons` into a string
-    spec as understood by `glom`.
-
-    Parameters
-    ----------
-    path : _Path_t
-        Path to a node
-
-    Returns
-    -------
-    str
-        A glom string spec
-
-    """
-    return ".".join(map(str, path))
 
 
 def _type(value: Dict) -> Type:
@@ -407,7 +388,7 @@ def _update_inplace(
         FIXME: possibly this can be simplified using functools.partial
 
         """
-        glom_spec = _path_to_glom_spec(path)
+        glom_spec = gPath(*path)
         _config_t = Spec(Invoke(func).constants(path[-1]).specs(glom_spec))
         return glom(_conf, Assign(glom_spec, _config_t))
 
@@ -499,7 +480,7 @@ def _resolve_optional(rules: Dict, conf: Dict) -> Dict:
     for node in _filter(rules, _is_optional):
         if node not in present:
             # delete unused optional rules
-            glom(rules, Delete(_path_to_glom_spec(node)))
+            glom(rules, Delete(gPath(*node)))
     return rules
 
 

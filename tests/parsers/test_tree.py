@@ -17,7 +17,6 @@ from typedconfig.parsers.tree import (
     _is_optional,
     _is_mandatory,
     _leaf_subset,
-    _path_to_glom_spec,
     _type,
     _validator,
     _str_to_spec,
@@ -59,7 +58,7 @@ def test_filter():
     ]
 
     def isnode(path):
-        return _is_node(path, path[-1], glom(conf, _path_to_glom_spec(path)))
+        return _is_node(path, path[-1], glom(conf, path))
 
     assert all(list(map(isnode, nodes)))
     assert not any(list(map(isnode, not_nodes)))
@@ -74,7 +73,7 @@ def test_filter():
     ]
 
     def isleaf(path):
-        return _is_leaf(path, path[-1], glom(conf, _path_to_glom_spec(path)))
+        return _is_leaf(path, path[-1], glom(conf, path))
 
     assert all(list(map(isleaf, leaves)))
     assert not any(list(map(isleaf, not_leaves)))
@@ -84,9 +83,7 @@ def test_filter():
     not_optional = set(leaves) - set(optional)
 
     def isoptional(path):
-        return _is_optional(
-            path, path[-1], glom(conf, _path_to_glom_spec(path))
-        )
+        return _is_optional(path, path[-1], glom(conf, path))
 
     assert all(list(map(isoptional, optional)))
     assert not any(list(map(isoptional, not_optional)))
@@ -94,9 +91,7 @@ def test_filter():
     assert _filter(conf, _is_optional) == set(optional)
 
     def ismandatory(path):
-        return _is_mandatory(
-            path, path[-1], glom(conf, _path_to_glom_spec(path))
-        )
+        return _is_mandatory(path, path[-1], glom(conf, path))
 
     assert all(list(map(ismandatory, not_optional)))
     assert not any(list(map(ismandatory, optional)))
@@ -121,13 +116,6 @@ def test_leaf_subset():
         ("foo", "bar", 1, "bah"),
     }
     assert result == expected
-
-
-def test_path_to_glom_spec():
-    path = ("foo", "bar", 5, "baz")
-    spec = _path_to_glom_spec(path)
-    assert isinstance(spec, str)
-    assert len(spec.split(".")) == len(path)
 
 
 def test_type_getter():
