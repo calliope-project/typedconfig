@@ -5,10 +5,11 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections import defaultdict
 from copy import deepcopy
 from dataclasses import asdict
 from functools import reduce
-from itertools import chain
+from itertools import chain, product
 from pathlib import Path
 from typing import (
     Any,
@@ -175,6 +176,66 @@ def _is_leaf(path: _Path_t, key: _Key_t, value: Any) -> bool:
         _is_node(path, key, value)
         and isinstance(value, dict)
         and type_key in value
+    )
+
+
+def get_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
+    """Retrieve keys from the leaf nodes, preserving the hierarchy
+
+    Parameters
+    ----------
+    data: Dict
+        Nested hierarchy of dictionary
+    keys: Iterable[str]
+        Keys to retrieve from the leaf nodes (leaf nodes are determined as per `_is_leaf`)
+
+    Returns
+    -------
+    Dict
+        Keys in the original hierarchy
+
+    """
+    key_values = glom(
+        data,
+        {
+            p: (p, {k: Coalesce(k, default=SKIP) for k in keys})
+            for p in _filter(data, _is_leaf)
+        },
+    )
+    # remove empty keys
+    list(map(key_values.pop, [k for k, v in key_values.items() if v == {}]))
+
+    def redict():
+        """Factory method for a recursive dictionary"""
+        return defaultdict(redict)
+
+    return glom(
+        redict(), tuple(Assign(gPath(*k), v) for k, v in key_values.items())
+    )
+
+
+def del_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
+    """Delete keys from leaf nodes
+
+    Parameters
+    ----------
+    data: Dict
+        Nested hierarchy of dictionary
+    keys: Iterable[str]
+        Keys to delete from the leaf nodes (leaf nodes are determined as per `_is_leaf`)
+
+    Returns
+    -------
+    Dict
+        Dictionary with the keys removed
+
+    """
+    return glom(
+        data,
+        tuple(
+            Delete(gPath(*path, key), ignore_missing=True)
+            for path, key in product(_filter(data, _is_leaf), keys)
+        ),
     )
 
 
