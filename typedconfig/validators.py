@@ -1,3 +1,5 @@
+from itertools import product
+
 __all__ = [
     "range_check",
     "quadrant",
@@ -5,6 +7,7 @@ __all__ = [
     "mult_of",
     "zero_sum",
     "sum_by_name",
+    "inheritance",
 ]
 
 
@@ -48,3 +51,18 @@ def sum_by_name(cls, values, *, total):
     if mysum != total:
         raise ValueError(f"{list(values.values())} do not add up to {total}")
     return values
+
+
+def inheritance(cls, val, values, *, allowed_in):
+    # if issubclass(cls, allowed_in):  # FIXME: get the types
+    #     raise ValueError(f"{cls} does not inherit from either of {allowed_in}")
+
+    # MRO ends in the base property class, and object, remove those
+    if any(
+        map(
+            lambda i: i[0] in i[1],
+            product(allowed_in, map(str, cls.mro()[:-2])),  # FIXME: nasty hack
+        )
+    ):
+        return val
+    raise TypeError(f"{cls} does not inherit from either of {allowed_in}")
