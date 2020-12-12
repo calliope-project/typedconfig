@@ -233,13 +233,11 @@ def test_spec_parsing_nested():
     # root validator on a leaf node
     spec = {
         "zero_sum_total": {
+            "validator": "zero_sum",
+            "validator_params": {"total": 15},
+            "root_validator": True,
             "foo": {"type": "PositiveInt"},
-            "bar": {
-                "type": "PositiveInt",
-                "validator": "zero_sum",
-                "validator_params": {"total": 15},
-                "root_validator": True,
-            },
+            "bar": {"type": "PositiveInt"},
         }
     }
 
@@ -255,13 +253,11 @@ def test_spec_parsing_nested():
     # root validator on an intermediate node
     spec = {
         "top": {
+            "validator": "sum_by_name",
+            "validator_params": {"total": 15},
+            "root_validator": True,
             "first": {"type": "PositiveInt"},
-            "second": {
-                "type": "PositiveInt",
-                "validator": "sum_by_name",
-                "validator_params": {"total": 15},
-                "root_validator": True,
-            },
+            "second": {"type": "PositiveInt"},
             "nest": {"leaf": {"type": "conint", "opts": {"multiple_of": 5}}},
         }
     }

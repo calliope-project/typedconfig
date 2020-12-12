@@ -10,6 +10,7 @@ from copy import deepcopy
 from dataclasses import asdict
 from functools import reduce
 from itertools import chain, product
+from operator import add
 from pathlib import Path
 from typing import (
     Any,
@@ -26,8 +27,9 @@ from typing import (
 from warnings import warn
 
 from boltons.iterutils import research
-from glom import Assign, Coalesce, Delete, glom, Invoke, Spec, SKIP, T
 from glom import Path as gPath
+from glom import A, S, SKIP, T
+from glom import Assign, Coalesce, Delete, glom, Invoke, Iter, Spec
 
 from typedconfig.helpers import merge_rules, NS
 from typedconfig.factory import make_typedconfig, make_validator
@@ -369,8 +371,18 @@ def _spec_to_type(
     value : Dict
         The dictionary with the type specification.  It looks like:
           {
+              "validator": <validator>,
+              "root_validator": True,
+              # ...
               "key1": {"type": <type1>, "validator": <validator1>},
               "key2": {"type": <type2>, "validator": <validator2>},
+              # ...
+          }
+
+        All <validator> instances are dictionaries themselves, w/ validator
+        name as the key, and the fuction as value.
+          {
+              "name": <classmethod>,
               # ...
           }
 
@@ -384,33 +396,46 @@ def _spec_to_type(
 
     """
     type_k = _type_spec[0]
-    dflt_k = _type_spec[6]
+    default_k = _type_spec[6]
+
+    def _type_w_defaults(key: str, value: Dict) -> Tuple:
+        if default_k in value:
+            return (key, value[type_k], value[default_k])
+        else:
+            return (key, value[type_k])
+
+    # convert to list of (key, value [, defaults]). apart from moving the data
+    # members w/ a default argument later, original ordering is preserved
     fields = glom(
-        # NOTE: original ordering is preserved, apart from moving the data
-        # members w/ default arguments later.
-        [(k, v) for k, v in value.items() if type_k in v and dflt_k not in v]
-        + [(k, v) for k, v in value.items() if type_k in v and dflt_k in v],
-        [
-            (
-                {
-                    "k": "0",
-                    "v": f"1.{type_k}",
-                    # TODO: non-trivial defaults like mutable types
-                    "d": Coalesce(f"1.{dflt_k}", default=SKIP),
-                },
-                T.values(),
-                tuple,
-            )
-        ],
-    )  # extract key, value and convert to list of tuples
-    ns = dict(
-        chain(
-            *glom(
-                value.values(),
-                [(Coalesce("validator", default_factory=dict), T.items())],
-            )
-        )
-    )  # chain dict.items() and create namespace
+        value.items(),
+        (
+            Iter()
+            # only keep type specfication dicts
+            .filter(lambda i: isinstance(i[1], dict) and type_k in i[1])
+            .map(Invoke(_type_w_defaults).specs("0", "1"))
+            .all(),  # NOTE: expand to list, otherwise checkpoint will fail
+            A.globals._all,  # checkpoint: all
+            Iter().filter(lambda i: len(i) == 2).all(),
+            A.globals.nodef,  # checkpoint: no default
+            S.globals._all,
+            Iter().filter(lambda i: len(i) == 3).all(),  # w/ default
+            # concat no default + w/ default
+            Invoke(add).specs(S.globals.nodef, T),
+        ),
+    )
+    spec = (  # get validators
+        Coalesce("validator", default_factory=dict),
+        T.items(),  # item: (fn.__name__, classmethod)
+    )
+    rv_spec = (  # root validators
+        *spec,
+        Iter().filter(lambda i: hasattr(i[1], "__root_validator_config__")),
+    )
+    v_spec = (  # regular validators
+        *spec,
+        Iter().filter(lambda i: hasattr(i[1], "__validator_config__")),
+    )
+    ns = dict(chain(glom(value, rv_spec), *glom(value.values(), [v_spec])))
     return make_typedconfig(f"{key}_t", fields, namespace=ns, bases=bases)
 
 
@@ -432,9 +457,10 @@ def _nested_type(key: str, value: Dict[str, Dict]) -> Dict:
           { "type": <type>, "validator": <validator> }
 
     """
+    # parse validator before type creation
     return {
-        "type": _spec_to_type(key, value),
         "validator": _str_to_spec(key, value),
+        "type": _spec_to_type(key, value),
     }
 
 
