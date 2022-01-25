@@ -22,11 +22,10 @@ from networkx import (
     topological_sort,
 )
 
-from typedconfig.factory import make_typedconfig
 from typedconfig import register
 from typedconfig.helpers import merge_dicts, merge_rules, read_yaml
+from typedconfig.parsers import _ConfigIO
 from typedconfig.parsers.tree import (
-    _ConfigIO,
     path_if,
     is_node,
     is_mandatory,

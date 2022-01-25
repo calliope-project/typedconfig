@@ -4,24 +4,21 @@
 
 from __future__ import annotations
 
-from abc import ABC
 from collections import defaultdict
+from collections.abc import MutableSequence, MutableMapping
 from copy import deepcopy
-from dataclasses import asdict
+from dataclasses import field
 from functools import reduce
 from itertools import chain, product
 from operator import add
-from pathlib import Path
 from typing import (
     Any,
     Callable,
     Dict,
     Iterable,
-    List,
     Set,
     Tuple,
     Type,
-    TypeVar,
     Union,
 )
 from warnings import warn
@@ -29,11 +26,12 @@ from warnings import warn
 from boltons.iterutils import research
 from glom import Path as gPath
 from glom import A, S, SKIP, T
-from glom import Assign, Coalesce, Delete, glom, Invoke, Iter, Spec
+from glom import Assign, Coalesce, Delete, glom, Invoke, Iter, Match, Spec
 
 from typedconfig.helpers import merge_rules, NS
 from typedconfig.factory import make_typedconfig, make_validator
-from typedconfig.helpers import read_yaml, read_json, to_yaml, to_json
+from typedconfig.helpers import read_yaml
+from typedconfig.parsers import _ConfigIO, _fpaths
 
 # type specification keys, order of keys important
 _type_spec = (
@@ -50,55 +48,8 @@ _type_spec = (
 )
 
 # types for keys and paths as understood by boltons.iterutils
-_file_t = TypeVar("_file_t", str, Path)
-_fpaths = Union[_file_t, List[_file_t], Tuple[_file_t]]
 _key_t = Union[str, int]  # mapping keys and sequence index
 _path_t = Tuple[_key_t, ...]
-
-
-class _ConfigIO(ABC):
-    """Base class to provide partial serialisation
-
-    - reads rules directly from YAML or JSON files
-    - saves config instances to YAML or JSON files (given all config values
-      are serialisable)
-
-    """
-
-    @classmethod
-    def from_yaml(cls, yaml_path: _fpaths) -> _ConfigIO:
-        # FIXME: type checking is ignored for the return statement because mypy
-        # doesn't seem to know this is an abstract base class, and the argument
-        # unpacking makes sense when instantiating any of the derived classes.
-        return cls(**merge_rules(yaml_path, read_yaml))  # type: ignore
-
-    @classmethod
-    def from_json(cls, json_path: _fpaths) -> _ConfigIO:
-        return cls(**merge_rules(json_path, read_json))  # type: ignore
-
-    def to_dict(self) -> Dict:
-        return asdict(self)
-
-    def to_yaml(self, yaml_path: Union[str, Path]):
-        to_yaml(self.to_dict(), yaml_path)
-
-    def to_json(self, json_path: Union[str, Path]):
-        to_json(self.to_dict(), json_path)
-
-
-_ConfigIO_to_file_doc_ = """
-Serialise to {0}
-
-Please note, this cannot be readily reread to create the config type again.  It
-requires a bit of hand editing to conform with the expected rules.
-
-NOTE: serialising may fail depending on whether any of the items in the config
-is {0} serialisable or not.
-
-"""
-
-_ConfigIO.to_yaml.__doc__ = _ConfigIO_to_file_doc_.format("YAML")
-_ConfigIO.to_json.__doc__ = _ConfigIO_to_file_doc_.format("JSON")
 
 
 def path_if(nested: Dict, test: Callable[[_path_t, _key_t, Any], bool]) -> Set[_path_t]:
@@ -589,6 +540,27 @@ def resolve_optional(rules: Dict, conf: Dict) -> Dict:
 
 
 def get_config(rule_files: _fpaths, conf_files: _fpaths):
+    """Return the config object
+
+    Both rules files and config files are first merged, then a config type is
+    created based on the rules.  Which is then used to instantiate a config
+    object.  The instantiation also validates the config values.
+
+    When rules/config files are merged, any attribute repeated in a later file
+    overrides any earlier value.
+
+    Parameters
+    ----------
+    rule_files : Path | List[Path]
+
+    conf_files : Path | List[Path]
+
+    Returns
+    -------
+    Config
+        Config object after validation
+
+    """
     rules = merge_rules(rule_files, read_yaml)
     confs = merge_rules(conf_files, read_yaml)
     config_t = get_config_t(resolve_optional(rules, confs))
