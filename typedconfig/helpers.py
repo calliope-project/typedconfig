@@ -3,6 +3,7 @@ from importlib import import_module
 from itertools import chain
 import json
 from pathlib import Path
+import re
 from types import SimpleNamespace
 from typing import (
     Any,
@@ -18,6 +19,18 @@ from typing import (
 )
 
 import yaml
+
+
+def import_from(module: str, name: str) -> Any:
+    """Import `name` from `module`
+
+    Raises
+    ------
+    AttributeError
+        If `name` doesn't exist
+
+    """
+    return getattr(import_module(module), name)
 
 
 class _Names:
@@ -58,19 +71,45 @@ class _Names:
 
     """
 
-    _type_modules = [
+    _default_type_modules = [
         "typing",
         "typing_extensions",
         "pydantic.types",
         "typedconfig._types",
     ]
-    _validator_modules = ["typedconfig.validators"]
+    _default_validator_modules = ["typedconfig.validators"]
+
+    _type_modules = _default_type_modules.copy()
+    _validator_modules = _default_validator_modules.copy()
 
     _types = False
     _validators = False
 
+    class _Namespace(SimpleNamespace):
+        def __getitem__(self, attr):
+            try:
+                res = getattr(self, attr)
+            except AttributeError as err:
+                identifier_re = r"'([a-zA-Z0-9_.]+)'"
+                msg, *_ = err.args
+                obj, attr = re.match(r".+".join([identifier_re] * 2), msg).groups()
+                if type(self).__name__ == obj:
+                    raise RuntimeError(f"{self._mods} has no {self._kind} {attr!r}")
+                else:
+                    raise
+            else:
+                return res
+
+        def get(self, attr, default=None):
+            try:
+                res = self.__getitem__(attr)
+            except RuntimeError:
+                return default
+            else:
+                return res
+
     @classmethod
-    def _import(cls, modules: Iterable[str]):
+    def _import(cls, kind: str, modules: Iterable[str]):
         """Import names from a nested list of modules to namespace"""
         try:
             mods = [import_module(mod) for mod in modules]
@@ -78,7 +117,7 @@ class _Names:
             raise ValueError(err)
 
         try:
-            ns = SimpleNamespace(
+            ns = cls._Namespace(
                 **{
                     name: getattr(mod, name)
                     for mod in mods
@@ -88,18 +127,20 @@ class _Names:
         except AttributeError as err:
             raise TypeError(f"non-conformant module: {err}")
         else:
+            ns._kind = kind
+            ns._mods = modules
             return ns
 
     @property
     def types(self):
         if not self._types:
-            self._types = self._import(self._type_modules)
+            self._types = self._import("type", self._type_modules)
         return self._types
 
     @property
     def validators(self):
         if not self._validators:
-            self._validators = self._import(self._validator_modules)
+            self._validators = self._import("validator", self._validator_modules)
         return self._validators
 
     def reset(self):
@@ -107,10 +148,14 @@ class _Names:
         self._types = False
         self._validators = False
 
-    def add_modules(
-        self, type_or_validator: str, modules: Sequence[str]
-    ) -> None:
+    def reset_modules(self):
+        self._type_modules = self._default_type_modules.copy()
+        self._validator_modules = self._default_validator_modules.copy()
+
+    def add_modules(self, type_or_validator: str, modules: Sequence[str]) -> None:
         """Add custom modules to the list of modules"""
+        if isinstance(modules, str):
+            modules = [modules]
         if type_or_validator == "type":
             self._type_modules += list(modules)
         elif type_or_validator == "validator":
