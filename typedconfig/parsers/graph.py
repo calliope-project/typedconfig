@@ -7,10 +7,12 @@
 
 from copy import copy
 from dataclasses import asdict, fields, replace
+from functools import partial
+import logging
 from pathlib import Path
-from typing import Callable, Dict, List, Set, Tuple, Type, TypeVar
+from typing import Callable, Dict, List, Tuple, Type, TypeVar
 
-from glom import Assign, Coalesce, glom, Spec
+from glom import Assign, Coalesce, glom
 from glom import Path as gPath
 from networkx import (
     DiGraph,
@@ -21,22 +23,33 @@ from networkx import (
 )
 
 from typedconfig.factory import make_typedconfig
+from typedconfig import register
 from typedconfig.helpers import merge_dicts, merge_rules, read_yaml
 from typedconfig.parsers.tree import (
     _ConfigIO,
-    _filter,
-    _is_node,
-    _is_mandatory,
-    _Path_t,
-    _spec_to_type,
+    path_if,
+    is_node,
+    is_mandatory,
+    spec_to_type,
     _type_spec,
     del_from_leaf,
     get_from_leaf,
     get_spec,
 )
 
+log = logging.getLogger(__name__)
+
 
 class spec_dict:
+    """This is a wrapper around the rules dictionary.
+
+    To use it, you need to specialise the rules for a config dictionary.
+
+    >>> spec = spec_dict(rules)  # doctest: +SKIP
+    >>> conf = spec.with_property(conf_dict_for_propa)  # doctest: +SKIP
+
+    """
+
     def __init__(self, attrs: Dict):
         attrs, _, leaf_paths = get_spec(attrs)
         self.attrs = attrs
@@ -45,16 +58,14 @@ class spec_dict:
 
     def with_property(self, prop: Dict):
         res = copy(self)
-        res.set_property(prop)
-        return res
+        return res.set_property(prop)
 
     def set_property(self, prop: Dict):
         self.prop = prop
-        self.prop_paths = [
-            p for p in _filter(prop, _is_node) if p in self.attr_paths
-        ]
+        self.prop_paths = [p for p in path_if(prop, is_node) if p in self.attr_paths]
         self._data = self.prop
         self._paths = self.prop_paths
+        return self
 
     def reset_property(self):
         self.prop = self.prop_paths = None
@@ -65,30 +76,45 @@ class spec_dict:
         return glom(self._data, gPath(*path))
 
     def __contains__(self, path: Tuple) -> bool:
-        return glom(self._data, (Coalesce(gPath(*path), default=False), bool),)
+        return glom(self._data, (Coalesce(gPath(*path), default=False), bool))
 
     def __iter__(self):
         return iter(self._paths)
 
     def filter(self, test: Callable):
-        return _filter(self._data, test)
+        return path_if(self._data, test)
+
+    def __repr__(self) -> str:
+        return str({k: self[k] for k in self})
 
 
-def make_baseprop_t(spec: spec_dict) -> Type:
-    """parse attribute rules"""
+def make_baseprop_t(spec: spec_dict, name: str = "baseprop") -> Type:
+    """Create a base property that other properties inherit from"""
     # NOTE: assumes the last key is globally unique
-    base_spec = {
-        str(path[-1]): spec[path] for path in spec.filter(_is_mandatory)
-    }
-    baseprop_t = _spec_to_type("baseprop", base_spec, bases=(_ConfigIO,))
+    base_spec = {str(path[-1]): spec[path] for path in spec.filter(is_mandatory)}
+    baseprop_t = spec_to_type(name, base_spec, bases=(_ConfigIO,))
     return baseprop_t
 
 
 def attr_defaults(attrs: Dict[str, Dict]) -> Tuple[Dict[str, Dict], Dict]:
+    """Separate property attribute rules and corresponding default values
+
+    Parameters
+    ----------
+    attrs : Dict[str, Dict]
+        Rules dictionary, each key represents an attribute, and the value is a
+        type specification as expected by `typedconfig.parsers.tree`.
+
+    Returns
+    -------
+    Tuple[Dict[str, Dict], Dict]
+        Tuple of the rules dictionary, and defaults separated out.
+
+    """
     def_key = _type_spec[6]
     # all attributes with defaults
     defaults = get_from_leaf(attrs, [def_key])
-    paths = _filter(defaults, lambda p, k, v: def_key in v)
+    paths = path_if(defaults, lambda p, k, v: def_key in v)
     defaults = glom(defaults, {p[-1]: gPath(*p, def_key) for p in paths})
 
     # remove default from spec before creating the base property, also remove
@@ -98,15 +124,63 @@ def attr_defaults(attrs: Dict[str, Dict]) -> Tuple[Dict[str, Dict], Dict]:
 
 
 def properties(
-    attrs: Dict[str, Dict], defaults: Dict, props: Dict[str, Dict]
+    attr_rules: Dict[str, Dict],
+    defaults: Dict,
+    props: Dict[str, Dict],
+    base_property_name: str = "baseprop",
+    type_namespace: str = "dynamic",
 ) -> Dict:
-    # FIXME: not idempotent, deletes default from attrs, doesn't return default
+    """Create a (optional) hierarchy of properties
 
+    Each property is a custom type, and may inherit from any one of the other
+    properties.  The set of valid attributes are passed as rules, and the
+    property types are constructed based on whether an attribute is present in
+    the configuration.  Optionally the property types can be registered under
+    the dynamic module 'typedconfig._{type_namespace}', and can be accessed later in the
+    same session with an import statement:
+
+    >>> from typedconfig.dynamic import property_t  # doctest: +SKIP
+
+    Parameters
+    ----------
+    attr_rules : Dict[str, Dict]
+        Dictionary with rules for all allowed attributes.  Optional attributes
+        are marked by setting the 'optional' key to `True`.
+    defaults : Dict
+        If certain keys have default values, they should be specified here.
+    props : Dict[str, Dict]
+        Configuration dictionary of properties to be defined.  Derived
+        properties should mark their parent by setting the 'parent' key to
+        their parent.
+    base_property_name : str (default: 'baseprop')
+    type_namespace : str (default: 'dynamic')
+        Custom property types are registered under:
+        'typedconfig._{type_namespace}'.
+
+    Returns
+    -------
+    Dict
+        Dictionary of property values
+
+    Raises
+    ------
+    ValueError
+        - The properties are validated against the specified rules during
+          instantiation, if the failure is due to a bad value.
+        - If there is a cycle in the property inheritance hierarchy.
+    TypeError
+        Same as above, except if the validation fails due to a type mismatch
+    AttributeError
+        If the attribute rules are erroneous (most likely reason)
+
+    """
     # create inheritance tree
+    parent_key = "parent"
     dep_gr = DiGraph()
     dep_gr.add_nodes_from(props.keys())
     dep_gr.add_edges_from(
-        (val["parent"], prop) for prop, val in props.items() if "parent" in val
+        (glom(props, i), i[0])
+        for i in path_if(props, lambda p, k, v: k == parent_key and v)
     )
     try:
         find_cycle(dep_gr, orientation="ignore")
@@ -115,18 +189,24 @@ def properties(
     else:
         raise ValueError(f"properties with cyclic dependency: {dep_gr.edges}")
 
-    spec = spec_dict(attrs)
-    baseprop_t = make_baseprop_t(spec)
+    _register = partial(register, submodule=type_namespace)
+    spec = spec_dict(attr_rules)
+    baseprop_t = _register(make_baseprop_t(spec, base_property_name))
 
-    res = {"baseprop": baseprop_t}
+    res = {base_property_name: baseprop_t}
     for prop in topological_sort(dep_gr):  # properties, sorted parent to child
         # attribute value pairs for current property
         conf = spec.with_property(props[prop])
-        inherit_from = conf.prop.pop("parent", None)
+        inherit_from = conf.prop.pop(parent_key, None)
 
-        _bases = (type(res[inherit_from]),) if inherit_from else (baseprop_t,)
-        _spec = {str(path[-1]): spec[path] for path in conf}
-        prop_t = _spec_to_type(prop, _spec, bases=_bases)
+        try:
+            _bases = (type(res[inherit_from]),) if inherit_from else (baseprop_t,)
+        except AttributeError:
+            log.error(f"{inherit_from}: property not defined")
+            raise
+        else:
+            _spec = {str(path[-1]): spec[path] for path in conf}
+            prop_t = _register(spec_to_type(prop, _spec, bases=_bases))
 
         inherited = asdict(res[inherit_from]) if inherit_from else {}
         # find applicable attributes with defaults
@@ -136,72 +216,83 @@ def properties(
         current = {path[-1]: conf[path] for path in conf}
         # inherited property attributes maybe overwritten
         kwargs = {**inherited, **_defaults, **current}
-        res[prop] = prop_t(**kwargs)
+        try:
+            res[prop] = prop_t(**kwargs)
+        except (TypeError, ValueError) as err:
+            log.error(f"Validation failed: {prop_t.__name__}\n{kwargs=}")
+            raise
+        except:
+            log.exception(f"unknown exception: {prop=}\n{kwargs=}")
+            raise
     return res
 
 
-def nodes(
-    attrs: Dict[str, Dict], props: Dict[str, Dict], _nodes: Dict[str, Dict],
-) -> List[Tuple[str, Dict]]:
-    res: List[Tuple[str, Dict]] = []
-    # for node, node_props in _nodes.items():
-    #     _props = node_props.pop("properties", {})
-    #     _fields = [(key, attrs[key]["type"]) for key in node_props]
-    #     for key, _prop in _props.items():
-    #         node_props[key] = (
-    #             replace(props[key], **_prop)
-    #             if isinstance(_prop, dict)
-    #             else props[key]
-    #         )
-    #         _fields += [(key, props[key].__class__)]
-    #     node_t = make_typedconfig(node, _fields)
-    #     node_t(**node_props)  # discard, only for validation
-    #     res += [(node, node_props)]
+def nodes(attr_rules: Dict[str, Dict], props: Dict, _nodes: Dict[str, Dict]) -> Dict:
+    """Create nodes with a list of properties
 
-    node_props = {node: v.pop("properties", {}) for node, v in _nodes.items()}
-    nodes = properties(attrs, {}, _nodes)
-    for node, _props in node_props.items():
-        for pname, vals in _props.items():
-            glom(
-                node_props,
-                Assign(
-                    f"{node}.{pname}",
-                    replace(props[pname], **vals) if vals else props[pname],
-                ),
-            )
-    from pprint import pprint
+    Parameters
+    ----------
+    attr_rules : Dict[str, Dict]
+        Dictionary with rules for all allowed attributes.  Optional attributes
+        are marked by setting the 'optional' key to `True`.
+    props : Dict[str, Dict]
+        Dictionary of defined properties
+    _nodes : Dict[str, Dict]
+        Configuration dictionary of nodes to be defined.
 
-    for node in nodes:
-        if node == "baseprop":
-            continue
-        print(node)
-        pprint(nodes[node])
-        pprint(node_props[node], indent=2)
-    return list(nodes.items())
+    Returns
+    -------
+    Dict
+        Dictionary of nodes with associated properties
+
+    """
+    # FIXME: use a generic term like "properties" instead of "techs"
+    for node, val in _nodes.items():
+        _props = {
+            pname: replace(props[pname], **prop) if prop else props[pname]
+            for pname, prop in val.pop("techs", {}).items()
+        }
+        glom(_nodes, Assign(f"{node}.techs", _props, missing=dict))
+
+    # add rule for dictionary of properties
+    attr_rules.update({"techs": {"type": "Dict"}})
+    attrs, defaults = attr_defaults(attr_rules)
+    res = properties(attrs, defaults, _nodes, "basenode")
+    return res
 
 
 def edges(
-    attrs: Dict[str, Dict], props: Dict[str, Dict], _edges: Dict[str, Dict],
-) -> List[Tuple[str, str, Dict]]:
-    res: List[Tuple[str, str, Dict]] = []
-    for loc1, locs in _edges.items():
-        _props = locs.pop("properties", {})
+    attr_rules: Dict[str, Dict],
+    props: Dict[str, Dict],
+    _edges: Dict[str, Dict],
+) -> Dict[Tuple[str, str], Dict]:
+    __edges = {}
+    __edge_namemap = {}
+    # FIXME: use a generic term like "properties"
+    for node1, nodes in _edges.items():
+        _props_n1 = nodes.pop("techs", {})
+        for node2, _props_n2 in nodes.items():
+            # merge properties from N1 and N2; N2 may override N1
+            _props_n2 = {} if _props_n2 is None else _props_n2
+            edge_props = merge_dicts([_props_n1, _props_n2.pop("techs", {})])
+            # update properties
+            _props_n2["techs"] = {
+                pname: replace(props[pname], **prop) if prop else props[pname]
+                for pname, prop in edge_props.items()
+            }
+            # edges with concatenated keys
+            edge_name = f"{node1}_{node2}"
+            __edges[edge_name] = _props_n2
+            __edge_namemap[edge_name] = (node1, node2)
 
-        for loc2, edge_props in locs.items():
-            if edge_props is None:
-                edge_props = {}
-            __props = merge_dicts([_props, edge_props.pop("properties", {})])
-            __fields = [(key, attrs[key]["type"]) for key in edge_props]
-            for key, __prop in __props.items():
-                edge_props[key] = (
-                    replace(props[key], **__prop)
-                    if isinstance(__prop, dict)
-                    else props[key]
-                )
-                __fields += [(key, props[key].__class__)]
-            edge_t = make_typedconfig(f"{loc1}_{loc2}", __fields)
-            edge_t(**edge_props)  # discard, only for validation
-            res += [(loc1, loc2, edge_props)]
+    # add rule for dictionary of properties
+    attr_rules.update({"techs": {"type": "Dict"}})
+    attrs, defaults = attr_defaults(attr_rules)
+    res = properties(attrs, defaults, __edges, "baseedge")
+    res = {
+        ("baseedge", "") if k == "baseedge" else __edge_namemap[k]: v
+        for k, v in res.items()
+    }
     return res
 
 
@@ -213,9 +304,7 @@ class Builder:
     _digraph = False
 
     def __init__(self, rules: List[_file_t]):
-        self.attrs, self.defaults = attr_defaults(
-            merge_rules(rules, read_yaml)
-        )
+        self.attrs, self.defaults = attr_defaults(merge_rules(rules, read_yaml))
 
     def make_properties(self, confs: List[_file_t]):
         self.props = properties(
@@ -230,9 +319,7 @@ class Builder:
         )
 
     def add_edges(self, confs: List[_file_t]):
-        self.edges = edges(
-            self.attrs, self.props, merge_rules(confs, read_yaml)
-        )
+        self.edges = edges(self.attrs, self.props, merge_rules(confs, read_yaml))
 
     @property
     def graph(self):

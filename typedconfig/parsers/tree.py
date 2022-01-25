@@ -50,10 +50,10 @@ _type_spec = (
 )
 
 # types for keys and paths as understood by boltons.iterutils
-_Key_t = Union[str, int]  # mapping keys and sequence index
-_Path_t = Tuple[_Key_t, ...]
 _file_t = TypeVar("_file_t", str, Path)
 _fpaths = Union[_file_t, List[_file_t], Tuple[_file_t]]
+_key_t = Union[str, int]  # mapping keys and sequence index
+_path_t = Tuple[_key_t, ...]
 
 
 class _ConfigIO(ABC):
@@ -101,26 +101,27 @@ _ConfigIO.to_yaml.__doc__ = _ConfigIO_to_file_doc_.format("YAML")
 _ConfigIO.to_json.__doc__ = _ConfigIO_to_file_doc_.format("JSON")
 
 
-def _filter(
-    nested: Dict, test: Callable[[_Path_t, _Key_t, Any], bool]
-) -> Set[_Path_t]:
+def path_if(nested: Dict, test: Callable[[_path_t, _key_t, Any], bool]) -> Set[_path_t]:
     """Filter the list of paths with `test`
 
     Parameters
     ----------
-    conf : Dict
+    nested : Dict
         Config dictionary
+
+    test : Callable[[Tuple[_key_t, ...], _key_t, Any], bool]
+        Function to filter paths (``_key_t`` is ``Union[str, int]``)
 
     Returns
     -------
-    Set[_Path_t]
+    Set[Tuple[_key_t, ...]]
         List of paths that pass `test`
 
     """
     return {path for path, _ in research(nested, query=test)}
 
 
-def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
+def is_node(path: _path_t, key: _key_t, value: Any) -> bool:
     """Detect a node in the configuration hierarchy
 
     NOTE: For whatever reason `remap(..)` starts with `(), None, ()`; which is
@@ -131,10 +132,10 @@ def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
 
     Parameters
     ----------
-    path : _Path_t
+    path : Tuple[_key_t, ...]
         Path to node
-    key : _Key_t
-        Configuration key
+    key : _key_t
+        Configuration key (``_key_t`` is ``Union[str, int]``)
     value
         The configuration value
 
@@ -150,7 +151,7 @@ def _is_node(path: _Path_t, key: _Key_t, value: Any) -> bool:
     return all(type_key not in full_path for type_key in _type_spec)
 
 
-def _is_leaf(path: _Path_t, key: _Key_t, value: Any) -> bool:
+def is_leaf(path: _path_t, key: _key_t, value: Any) -> bool:
     """Detect a leaf node
 
     Test criteria:
@@ -160,10 +161,10 @@ def _is_leaf(path: _Path_t, key: _Key_t, value: Any) -> bool:
 
     Parameters
     ----------
-    path : _Path_t
+    path : Tuple[_key_t, ...]
         Path to node
-    key : _Key_t
-        Configuration key
+    key : _key_t
+        Configuration key (``_key_t`` is ``Union[str, int]``)
     value
         The configuration value
 
@@ -174,11 +175,7 @@ def _is_leaf(path: _Path_t, key: _Key_t, value: Any) -> bool:
 
     """
     type_key = _type_spec[0]
-    return (
-        _is_node(path, key, value)
-        and isinstance(value, dict)
-        and type_key in value
-    )
+    return is_node(path, key, value) and isinstance(value, dict) and type_key in value
 
 
 def get_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
@@ -189,7 +186,7 @@ def get_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
     data: Dict
         Nested hierarchy of dictionary
     keys: Iterable[str]
-        Keys to retrieve from the leaf nodes (leaf nodes are determined as per `_is_leaf`)
+        Keys to retrieve from the leaf nodes (as per `is_leaf`)
 
     Returns
     -------
@@ -201,7 +198,7 @@ def get_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
         data,
         {
             p: (p, {k: Coalesce(k, default=SKIP) for k in keys})
-            for p in _filter(data, _is_leaf)
+            for p in path_if(data, is_leaf)
         },
     )
     # remove empty keys
@@ -211,9 +208,7 @@ def get_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
         """Factory method for a recursive dictionary"""
         return defaultdict(redict)
 
-    return glom(
-        redict(), tuple(Assign(gPath(*k), v) for k, v in key_values.items())
-    )
+    return glom(redict(), tuple(Assign(gPath(*k), v) for k, v in key_values.items()))
 
 
 def del_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
@@ -224,7 +219,7 @@ def del_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
     data: Dict
         Nested hierarchy of dictionary
     keys: Iterable[str]
-        Keys to delete from the leaf nodes (leaf nodes are determined as per `_is_leaf`)
+        Keys to delete from the leaf nodes (per `is_leaf`)
 
     Returns
     -------
@@ -236,13 +231,15 @@ def del_from_leaf(data: Dict, keys: Iterable[str]) -> Dict:
         data,
         tuple(
             Delete(gPath(*path, key), ignore_missing=True)
-            for path, key in product(_filter(data, _is_leaf), keys)
+            for path, key in product(path_if(data, is_leaf), keys)
         ),
     )
 
 
-def _leaf_subset(paths: Iterable[_Path_t]) -> Set[_Path_t]:
-    """From a set of paths, find the paths that are leaves (no further branches).
+def leaf_subset(paths: Iterable[_path_t]) -> Set[_path_t]:
+    """From a set of paths, find the paths that are leaves.
+
+    Leaves are paths with no further downstream branches.
 
     NOTE: if a path overlaps with another (given they are not the same), the
     shorter path has branches ahead, and is not in the leaf subset.  The
@@ -253,40 +250,38 @@ def _leaf_subset(paths: Iterable[_Path_t]) -> Set[_Path_t]:
 
     Parameters
     ----------
-    paths : Collection[_Path_t]
+    paths : Collection[Tuple[_key_t, ...]]
         List of paths
 
     Returns
     -------
-    Set[_Path_t]
+    Set[Tuple[_key_t, ...]]
         List of paths to leaf nodes
 
     """
 
-    def __is_leaf(path: _Path_t) -> bool:
+    def __is_leaf(path: _path_t) -> bool:
         return not any(set(path).issubset(q) for q in paths if path != q)
 
     return {p for p in paths if __is_leaf(p)}
 
 
-def _type(value: Dict) -> Type:
+def get_type(value: Dict) -> Type:
     """Parse config and create the respective type"""
-    type_key = _type_spec[0]
+    leaf_type = NS.types[value[_type_spec[0]]]
     opts = value.get(_type_spec[1], None)
     if opts and isinstance(opts, (tuple, list, set)):
-        config_t = getattr(NS.types, value[type_key])[
-            tuple(getattr(NS.types, i, i) for i in opts)
-        ]
+        config_t = leaf_type[tuple(NS.types.get(i, i) for i in opts)]
     elif opts and isinstance(opts, dict):
-        config_t = getattr(NS.types, value[type_key])(**opts)
+        config_t = leaf_type(**opts)
     else:
-        config_t = getattr(NS.types, value[type_key])
+        config_t = leaf_type
         if opts:
             warn(f"ambiguous option ignored: {opts}", category=UserWarning)
     return config_t
 
 
-def _validator(key: str, value: Dict) -> Dict[str, classmethod]:
+def get_validator(key: str, value: Dict) -> Dict[str, classmethod]:
     """Parse config and create the respective validator method
 
     The validator is bound to a specific key, and a list of all other keys at
@@ -308,26 +303,30 @@ def _validator(key: str, value: Dict) -> Dict[str, classmethod]:
 
     """
     _1, _2, val_key, opts_key, params_key, is_root, *__ = _type_spec
-    if isinstance(value[val_key], str):
-        funcs = [
-            (getattr(NS.validators, value[val_key]), value.get(params_key, {}))
-        ]
-    else:
-        funcs = [
-            (getattr(NS.validators, fn), pars)
-            for fn, pars in zip(value[val_key], value.get(params_key, {}))
-        ]
-    key = "" if value.get(is_root, False) else key
+    validators = value[val_key]
+    params = value.get(params_key, {})
+    if isinstance(validators, str):
+        funcs = [(NS.validators[validators], params)]
+    else:  # list of validators
+        if not isinstance(validators, list):
+            raise ValueError(f"{validators}: must be a 'str' or 'list'")
+        params = params if isinstance(params, list) else [{}] * len(validators)
+        if len(validators) != len(params):
+            raise ValueError(
+                f"{validators}, {params}: no. of validators and param sets don't match"
+            )
+        glom(params, Match([dict]))
+        funcs = [(NS.validators[fn], pars) for fn, pars in zip(validators, params)]
+    key = "" if is_root in value else key  # don't actually use the value
     opts = value.get(opts_key, {})
     return dict(
         chain.from_iterable(
-            make_validator(fn, key, opts=opts, **pars).items()
-            for fn, pars in funcs
+            make_validator(fn, key, opts=opts, **pars).items() for fn, pars in funcs
         )
     )
 
 
-def _str_to_spec(key: str, value: Dict) -> Dict:
+def str_to_spec(key: str, value: Dict) -> Dict:
     """Parse the config dictionary and create the types and validators
 
     Parameters
@@ -350,15 +349,15 @@ def _str_to_spec(key: str, value: Dict) -> Dict:
     type_key, _, validator_key, *__ = _type_spec  # get key names
 
     if type_key in value:  # only for basic types (leaf nodes)
-        value[type_key] = _type(value)
+        value[type_key] = get_type(value)
 
     if validator_key in value:  # for validators at all levels
-        value[validator_key] = _validator(key, value)
+        value[validator_key] = get_validator(key, value)
 
     return value
 
 
-def _spec_to_type(
+def spec_to_type(
     key: str, value: Dict[str, Dict], bases: Tuple[Type, ...] = ()
 ) -> Type:
     """Using the type specification, create the custom type objects
@@ -369,7 +368,8 @@ def _spec_to_type(
         The key name corresponding to the specification. It is used as a
         template for the custom type name.
     value : Dict
-        The dictionary with the type specification.  It looks like:
+        The dictionary with the type specification.  It looks like::
+
           {
               "validator": <validator>,
               "root_validator": True,
@@ -380,11 +380,9 @@ def _spec_to_type(
           }
 
         All <validator> instances are dictionaries themselves, w/ validator
-        name as the key, and the fuction as value.
-          {
-              "name": <classmethod>,
-              # ...
-          }
+        name as the key, and the fuction as value.:
+
+          {"name": <classmethod>}
 
     bases : Tuple[Type, ...]
         Base classes
@@ -399,14 +397,20 @@ def _spec_to_type(
     default_k = _type_spec[6]
 
     def _type_w_defaults(key: str, value: Dict) -> Tuple:
-        if default_k in value:
-            return (key, value[type_k], value[default_k])
+        _type = value[type_k]
+        _default = value.get(default_k)
+        if _default:
+            if isinstance(_default, (MutableMapping, MutableSequence)):
+                _field = field(default_factory=lambda: _default)
+            else:
+                _field = field(default=_default)
+            return (key, _type, _field)
         else:
-            return (key, value[type_k])
+            return (key, _type)
 
     # convert to list of (key, value [, defaults]). apart from moving the data
     # members w/ a default argument later, original ordering is preserved
-    fields = glom(
+    _fields = glom(
         value.items(),
         (
             Iter()
@@ -436,10 +440,10 @@ def _spec_to_type(
         Iter().filter(lambda i: hasattr(i[1], "__validator_config__")),
     )
     ns = dict(chain(glom(value, rv_spec), *glom(value.values(), [v_spec])))
-    return make_typedconfig(f"{key}_t", fields, namespace=ns, bases=bases)
+    return make_typedconfig(f"{key}_t", _fields, namespace=ns, bases=bases)
 
 
-def _nested_type(key: str, value: Dict[str, Dict]) -> Dict:
+def nested_type(key: str, value: Dict[str, Dict]) -> Dict:
     """Create the type dictionary for nested types (not leaf nodes)
 
     Parameters
@@ -459,17 +463,15 @@ def _nested_type(key: str, value: Dict[str, Dict]) -> Dict:
     """
     # parse validator before type creation
     return {
-        "validator": _str_to_spec(key, value),
-        "type": _spec_to_type(key, value),
+        "validator": str_to_spec(key, value),
+        "type": spec_to_type(key, value),
     }
 
 
-def _update_inplace(
-    func: Callable[[str, Dict], Dict]
-) -> Callable[[Dict, _Path_t], Dict]:
+def bind_updater(func: Callable[[str, Dict], Dict]) -> Callable[[Dict, _path_t], Dict]:
     """Bind the given function to `update_inplace` defined below"""
 
-    def update_inplace(_conf: Dict, path: _Path_t) -> Dict:
+    def update_inplace(_conf: Dict, path: _path_t) -> Dict:
         """Invoke the bound function to reassign matching items
 
         FIXME: possibly this can be simplified using functools.partial
@@ -483,11 +485,26 @@ def _update_inplace(
 
 
 def get_spec(rules: Dict) -> Tuple[Dict[str, Dict], Set, Set]:
-    paths = _filter(rules, _is_node)
-    leaves = _filter(rules, _is_leaf)
+    """Return the config specification from the rules dict
+
+    It also returns all paths, leaf nodes in the config.
+
+    Parameters
+    ----------
+    rules : Dict
+        Rules dictionary
+
+    Returns
+    -------
+    Tuple[Dict[str, Dict], Set, Set]
+        Config specification, set of paths, set of leaf nodes
+
+    """
+    paths = path_if(rules, is_node)
+    leaves = path_if(rules, is_leaf)
 
     # create a copy of the dictionary, and recursively update the leaf nodes
-    spec = reduce(_update_inplace(_str_to_spec), leaves, deepcopy(rules))
+    spec = reduce(bind_updater(str_to_spec), leaves, deepcopy(rules))
     return spec, paths, leaves
 
 
@@ -497,24 +514,24 @@ def get_config_t(rules: Dict) -> Type:
 
     # walk up the tree, and process the "new" leaf nodes.  using a set takes
     # care of duplicates.
-    branches: Set[_Path_t] = _leaf_subset(paths - leaves)
+    branches: Set[_path_t] = leaf_subset(paths - leaves)
     while branches:
-        _conf = reduce(_update_inplace(_nested_type), branches, _conf)
-        branches = _leaf_subset(path[:-1] for path in branches if path[:-1])
+        _conf = reduce(bind_updater(nested_type), branches, _conf)
+        branches = leaf_subset(path[:-1] for path in branches if path[:-1])
 
-    return _spec_to_type("config", _conf, bases=(_ConfigIO,))
+    return spec_to_type("config", _conf, bases=(_ConfigIO,))
 
 
-def _is_optional(path: _Path_t, key: _Key_t, value: Any) -> bool:
+def is_optional(path: _path_t, key: _key_t, value: Any) -> bool:
     """Detect if a node is optional
 
     This checks if a key is a node, and if it's an optional attribute.
 
     Parameters
     ----------
-    path : _Path_t
+    path : _path_t
         Path to node
-    key : _Key_t
+    key : _key_t
         Configuration key
     value
         The configuration value
@@ -526,21 +543,21 @@ def _is_optional(path: _Path_t, key: _Key_t, value: Any) -> bool:
 
     """
     opt_key = _type_spec[7]
-    return _is_leaf(path, key, value) and value.get(opt_key, False)
+    return is_leaf(path, key, value) and value.get(opt_key, False)
 
 
-def _is_mandatory(path: _Path_t, key: _Key_t, value: Any) -> bool:
+def is_mandatory(path: _path_t, key: _key_t, value: Any) -> bool:
     """Detect if a node is mandatory
 
     NOTE: This is not trivially the opposite of _is_optional because not all
-    paths represent nodes, and simply negating _is_optional would include paths
-    that are not nodes.
+    paths represent leaf nodes, and simply negating _is_optional would include
+    paths that are not leaf nodes.
 
     Parameters
     ----------
-    path : _Path_t
+    path : _path_t
         Path to node
-    key : _Key_t
+    key : _key_t
         Configuration key
     value
         The configuration value
@@ -552,19 +569,19 @@ def _is_mandatory(path: _Path_t, key: _Key_t, value: Any) -> bool:
 
     """
     opt_key = _type_spec[7]
-    return _is_leaf(path, key, value) and (not value.get(opt_key, False))
+    return is_leaf(path, key, value) and (not value.get(opt_key, False))
 
 
-def _resolve_optional(rules: Dict, conf: Dict) -> Dict:
+def resolve_optional(rules: Dict, conf: Dict) -> Dict:
     """Go through the rules and drop optional keys that are absent in conf"""
     # leaves defined in rules
-    leaves = _filter(rules, _is_leaf)
+    leaves = path_if(rules, is_leaf)
     # keys present in config; also contains keys from dictionary that are part
     # of the config, e.g. validator_params, or keyword options to type
-    keys = _filter(conf, _is_node)
+    keys = path_if(conf, is_node)
     # valid_leaves ∩ keys = valid_leaves present in config
     present = leaves.intersection(keys)
-    for node in _filter(rules, _is_optional):
+    for node in path_if(rules, is_optional):
         if node not in present:
             # delete unused optional rules
             glom(rules, Delete(gPath(*node)))
@@ -574,5 +591,5 @@ def _resolve_optional(rules: Dict, conf: Dict) -> Dict:
 def get_config(rule_files: _fpaths, conf_files: _fpaths):
     rules = merge_rules(rule_files, read_yaml)
     confs = merge_rules(conf_files, read_yaml)
-    config_t = get_config_t(_resolve_optional(rules, confs))
+    config_t = get_config_t(resolve_optional(rules, confs))
     return config_t(**confs)

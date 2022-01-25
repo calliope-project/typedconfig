@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict
 from pydantic import root_validator, validator
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
-_ValidatorMap_t = Dict[str, classmethod]
+_vmap_t = Dict[str, classmethod]
 
 
 # copied and adapted make_dataclass(..) from cpython/Lib/dataclasses.py
@@ -73,9 +73,7 @@ def make_typedconfig(cls_name, fields, *, bases=(), namespace=None, **kwargs):
     return pydantic_dataclass(cls, **kwargs)
 
 
-def make_validator(
-    func: Callable, key: str, *, opts: Dict = {}, **params
-) -> _ValidatorMap_t:
+def make_validator(func: Callable, key: str, *, opts: Dict = {}, **params) -> _vmap_t:
     """Create a validator classmethod by wrapping a function in a closure
 
     Parameters
@@ -97,7 +95,7 @@ def make_validator(
 
     Returns
     -------
-    _ValidatorMap_t
+    Dict[str, classmethod]
         A dictionary with the validator function wrapped as a classmethod
 
           {'function_name' : classmethod(func)}
