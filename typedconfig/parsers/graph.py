@@ -187,7 +187,9 @@ def properties(
         # nx.draw(dep_gr, with_labels=True, pos=nx.spring_layout(dep_gr))
         pass
     else:
-        raise ValueError(f"properties with cyclic dependency: {dep_gr.edges}\n{loop=}")
+        raise ValueError(
+            f"properties with cyclic dependency: {dep_gr.edges}\nloop={loop}"
+        )
 
     _register = partial(register, submodule=type_namespace)
     spec = spec_dict(attr_rules)
@@ -219,10 +221,10 @@ def properties(
         try:
             res[prop] = prop_t(**kwargs)
         except (TypeError, ValueError) as err:
-            log.error(f"Validation failed: {prop_t.__name__}\n{kwargs=}")
+            log.error(f"Validation failed: {prop_t.__name__}\nkwargs={kwargs}")
             raise
         except:
-            log.exception(f"unknown exception: {prop=}\n{kwargs=}")
+            log.exception(f"unknown exception: prop={prop}\nkwargs={kwargs}")
             raise
     return res
 

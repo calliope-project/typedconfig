@@ -86,7 +86,9 @@ class _ConfigIO(ABC):
         try:
             res = issubclass(cls, types)
         except Exception as err:
-            log.exception(f"unexpected exception: {cls} {type_names=} {types=} {err}")
+            log.exception(
+                f"unexpected exception: {cls} type_names={type_names} types={types} {err}"
+            )
             raise
         return res
 
