@@ -82,12 +82,12 @@ key1_options:
 ``
 
 In the above example, it is not possible to refer to any sub-keys
-under `key1` from `key1_options`.  It is however possible to refer to
-keys at the same level or deeper, with one restriction.  The refered
-key has to come before the key being validated, and the refered key
-has to pass validation.  In the above example, validation of `opt_b`
-can refer to `opt_a`, but not `opt_c`, similarly, validation of
-`opt_c` can refer to both `opt_a` and `opt_b`, and `opt_a` can refer
-to nothing.  This is done by looking for the desired key in the
-`values` parameter (a dictionary) in the validator function (see
-specification document).
+under ``key1`` from ``key1_options``.  It is however possible to refer
+to keys at the same level or deeper, with one restriction.  The
+refered key has to come before the key being validated, and the
+refered key has to pass validation.  In the above example, validation
+of ``opt_b`` can refer to ``opt_a``, but not ``opt_c``, similarly,
+validation of ``opt_c`` can refer to both ``opt_a`` and ``opt_b``, and
+``opt_a`` can refer to nothing.  This is done by looking for the
+desired key in the ``values`` parameter (a dictionary) in the
+validator function (see specification document).
