@@ -14,13 +14,9 @@ from typing import Callable, Dict, List, Tuple, Type, TypeVar
 
 from glom import Assign, Coalesce, glom
 from glom import Path as gPath
-from networkx import (
-    DiGraph,
-    Graph,
-    find_cycle,
-    NetworkXNoCycle,
-    topological_sort,
-)
+from networkx import DiGraph, Graph
+from networkx import find_cycle, topological_sort
+from networkx import NetworkXNoCycle
 
 from typedconfig import register
 from typedconfig.helpers import merge_dicts, merge_rules, read_yaml
@@ -182,11 +178,16 @@ def properties(
         for i in path_if(props, lambda p, k, v: k == parent_key and v)
     )
     try:
-        find_cycle(dep_gr, orientation="ignore")
+        loop = find_cycle(dep_gr, orientation="original")
     except NetworkXNoCycle:
+        # useful for debugging, and maybe visualisation in the future
+        # import matplotlib.pyplot as plt
+        # import networkx as nx
+
+        # nx.draw(dep_gr, with_labels=True, pos=nx.spring_layout(dep_gr))
         pass
     else:
-        raise ValueError(f"properties with cyclic dependency: {dep_gr.edges}")
+        raise ValueError(f"properties with cyclic dependency: {dep_gr.edges}\n{loop=}")
 
     _register = partial(register, submodule=type_namespace)
     spec = spec_dict(attr_rules)
