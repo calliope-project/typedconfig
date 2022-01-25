@@ -228,7 +228,10 @@ def properties(
 
 
 def nodes(attr_rules: Dict[str, Dict], props: Dict, _nodes: Dict[str, Dict]) -> Dict:
-    """Create nodes with a list of properties
+    """Create nodes that are related by an inheritance hierarchy.
+
+    Each node has a set of attributes (which can be inherited by a child), and
+    a special attribute ``techs`` holds a set of properties.
 
     Parameters
     ----------
@@ -262,10 +265,33 @@ def nodes(attr_rules: Dict[str, Dict], props: Dict, _nodes: Dict[str, Dict]) -> 
 
 
 def edges(
-    attr_rules: Dict[str, Dict],
-    props: Dict[str, Dict],
-    _edges: Dict[str, Dict],
+    attr_rules: Dict[str, Dict], props: Dict[str, Dict], _edges: Dict[str, Dict]
 ) -> Dict[Tuple[str, str], Dict]:
+    """Create a set of edges between a set of interconnected nodes.
+
+    Each edge has a set of attributes, and a special attribute ``techs`` holds
+    a set of properties.
+
+    Parameters
+    ----------
+    attr_rules : Dict[str, Dict]
+        Dictionary with rules for all allowed attributes.  Optional attributes
+        are marked by setting the 'optional' key to `True`.
+    props : Dict[str, Dict]
+        Dictionary of defined properties
+    _edges : Dict[str, Dict]
+        Configuration dictionary of edges to be defined.
+
+    Returns
+    -------
+    Dict
+
+        Dictionary of edges with associated properties; the key is a tuple of
+        node names that are connected by that edge: ``(node1, node2)``.  There
+        is a base edge type, which is available under the special key:
+        ``("baseedge", "")``.
+
+    """
     __edges = {}
     __edge_namemap = {}
     # FIXME: use a generic term like "properties"
