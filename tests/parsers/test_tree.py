@@ -11,23 +11,23 @@ import typing_extensions
 
 from typedconfig.helpers import read_yaml
 from typedconfig.parsers.tree import (
-    _filter,
-    _is_node,
-    _is_leaf,
-    _is_optional,
-    _is_mandatory,
-    _leaf_subset,
-    _type,
-    _validator,
-    _str_to_spec,
-    _spec_to_type,
+    path_if,
+    is_node,
+    is_leaf,
+    is_optional,
+    is_mandatory,
+    leaf_subset,
+    get_type,
+    get_validator,
+    str_to_spec,
+    spec_to_type,
     get_config_t,
-    _resolve_optional,
+    resolve_optional,
     get_config,
 )
 
 
-def test_filter():
+def test_path_if():
     # FIXME: generate examples
     conf = {
         "foo": {
@@ -58,11 +58,11 @@ def test_filter():
     ]
 
     def isnode(path):
-        return _is_node(path, path[-1], glom(conf, path))
+        return is_node(path, path[-1], glom(conf, path))
 
     assert all(list(map(isnode, nodes)))
     assert not any(list(map(isnode, not_nodes)))
-    assert _filter(conf, _is_node) == set(nodes)
+    assert path_if(conf, is_node) == set(nodes)
 
     leaves = [("foo", "bar"), ("foo", "baz", "alt"), ("kaa", "boom")]
     not_leaves = [
@@ -73,30 +73,30 @@ def test_filter():
     ]
 
     def isleaf(path):
-        return _is_leaf(path, path[-1], glom(conf, path))
+        return is_leaf(path, path[-1], glom(conf, path))
 
     assert all(list(map(isleaf, leaves)))
     assert not any(list(map(isleaf, not_leaves)))
-    assert _filter(conf, _is_leaf) == set(leaves)
+    assert path_if(conf, is_leaf) == set(leaves)
 
     optional = [("kaa", "boom")]
     not_optional = set(leaves) - set(optional)
 
     def isoptional(path):
-        return _is_optional(path, path[-1], glom(conf, path))
+        return is_optional(path, path[-1], glom(conf, path))
 
     assert all(list(map(isoptional, optional)))
     assert not any(list(map(isoptional, not_optional)))
     assert not any(list(map(isoptional, not_leaves)))
-    assert _filter(conf, _is_optional) == set(optional)
+    assert path_if(conf, is_optional) == set(optional)
 
     def ismandatory(path):
-        return _is_mandatory(path, path[-1], glom(conf, path))
+        return is_mandatory(path, path[-1], glom(conf, path))
 
     assert all(list(map(ismandatory, not_optional)))
     assert not any(list(map(ismandatory, optional)))
     assert not any(list(map(ismandatory, not_leaves)))
-    assert _filter(conf, _is_mandatory) == set(not_optional)
+    assert path_if(conf, is_mandatory) == set(not_optional)
 
 
 def test_leaf_subset():
@@ -109,7 +109,7 @@ def test_leaf_subset():
         ("foo", "bar", 1, "baz"),
         ("foo", "bar", 1, "bah"),
     ]
-    result = _leaf_subset(paths)
+    result = leaf_subset(paths)
     expected = {
         ("foo", "bar", 0),
         ("foo", "bar", 1, "baz"),
@@ -122,13 +122,13 @@ def test_type_getter():
     spec = {"type": "Literal", "opts": ["foo", "bar"]}
 
     # type with [..]
-    result = _type(spec)
+    result = get_type(spec)
     expected = getattr(typing_extensions, spec["type"])[tuple(spec["opts"])]
     assert result == expected
 
     # type from factory
     spec = {"type": "conint", "opts": {"gt": 0, "le": 10}}
-    c_int1 = _type(spec)
+    c_int1 = get_type(spec)
     c_int2 = getattr(pydantic.types, spec["type"])(**spec["opts"])
     assert type(c_int1) == type(c_int2)
     assert c_int1.gt == c_int2.gt and c_int1.lt == c_int2.lt
@@ -136,12 +136,12 @@ def test_type_getter():
     # just type
     spec = {"type": "PositiveInt"}
     expected = getattr(pydantic.types, spec["type"])
-    assert _type(spec) == expected
+    assert get_type(spec) == expected
 
     # type with unsupported option
     spec.update(opts="foo")
     with pytest.warns(UserWarning, match="ambiguous option ignored.+"):
-        assert _type(spec) == expected
+        assert get_type(spec) == expected
 
 
 def test_validator_getter():
@@ -153,7 +153,7 @@ def test_validator_getter():
     }
     key = "foo"
 
-    name, validator = _validator(key, spec).popitem()
+    name, validator = get_validator(key, spec).popitem()
     assert name in str(validator.__func__)  # function import
     assert validator.__validator_config__[0] == (key,)  # validated key
     assert (
@@ -163,7 +163,7 @@ def test_validator_getter():
     # TODO: test validator opts
 
     spec.update(root_validator=True)
-    name, validator = _validator(key, spec).popitem()  # 'key' is ignored
+    name, validator = get_validator(key, spec).popitem()  # 'key' is ignored
     assert hasattr(validator, "__root_validator_config__")
 
     spec = {
@@ -171,11 +171,9 @@ def test_validator_getter():
         "validator_params": [{"min_key": "min"}, {"threshold": 10}]
         # "validator_opts":  FIXME:
     }
-    validators = _validator(key, spec)
+    validators = get_validator(key, spec)
     assert all(name in str(_val.__func__) for name, _val in validators.items())
-    assert all(
-        v.__validator_config__[0] == (key,) for v in validators.values()
-    )
+    assert all(v.__validator_config__[0] == (key,) for v in validators.values())
 
 
 def test_spec_parsing():
@@ -189,14 +187,14 @@ def test_spec_parsing():
     }
 
     # Test if the spec is modified in-place
-    _str_to_spec("foo", spec["foo"])
+    str_to_spec("foo", spec["foo"])
     # the base type is imported
     assert isinstance(glom(spec, "foo.type"), type)
     # the custom validator is still a dictionary: {"methodname": <method>}
     assert isinstance(glom(spec, "foo.validator"), dict)
     assert isinstance(glom(spec, "foo.validator.threshold"), classmethod)
 
-    config_t = _spec_to_type("foo", spec)
+    config_t = spec_to_type("foo", spec)
     assert isinstance(config_t, type)
     assert config_t(foo=2).foo == 2
 
@@ -214,8 +212,8 @@ def test_spec_parsing():
             "validator_params": [{"threshold": 15}, {"factor": 3}],
         }
     }
-    spec["foo"] = _str_to_spec("foo", spec["foo"])
-    config_t = _spec_to_type("foo", spec)
+    spec["foo"] = str_to_spec("foo", spec["foo"])
+    config_t = spec_to_type("foo", spec)
 
     conf = config_t(foo=9)
     assert isinstance(config_t, type)
@@ -309,7 +307,7 @@ def test_optional():
     }
 
     expected = {("bar",), ("parent", "cousin"), ("array2",)}
-    result = _filter(rules, _is_optional)
+    result = path_if(rules, is_optional)
     assert result == expected
 
     conf = {
@@ -324,7 +322,7 @@ def test_optional():
         "array2": [-3, 3],  # optional, and present
     }
 
-    result = _resolve_optional(rules, conf)
+    result = resolve_optional(rules, conf)
     assert "bar" not in result
     assert "cousin" in result["parent"]
     assert "array2" in result
