@@ -327,7 +327,8 @@ def test_optional():
     assert "cousin" in result["parent"]
     assert "array2" in result
 
-    config = get_config_t(result)(**conf)
+    config_t = get_config_t(result)
+    config = config_t(**conf)
 
     assert not hasattr(config, "bar")
     assert config.parent.child == False

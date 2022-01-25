@@ -350,7 +350,10 @@ def spec_to_type(
     def _type_w_defaults(key: str, value: Dict) -> Tuple:
         _type = value[type_k]
         _default = value.get(default_k)
-        if _default:
+        if _default is not None:
+            # allow setting `None` as default by using the sentinel string `_None`
+            if _default == "_None":
+                _default = None
             if isinstance(_default, (MutableMapping, MutableSequence)):
                 _field = field(default_factory=lambda: _default)
             else:

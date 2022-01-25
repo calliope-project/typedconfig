@@ -12,12 +12,15 @@ which can be used to validate the config file provided by the user.
 from __future__ import annotations
 
 from abc import ABC
-from dataclasses import asdict, fields, is_dataclass
+from dataclasses import asdict, fields, is_dataclass, MISSING
+import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Type, TypeVar, Union
 
-from typedconfig.helpers import read_yaml, read_json, to_yaml, to_json
+from typedconfig.helpers import merge_rules, read_yaml, read_json, to_yaml, to_json
 from typedconfig.helpers import import_from
+
+log = logging.getLogger(__name__)
 
 _file_t = TypeVar("_file_t", str, Path)
 _fpaths = Union[_file_t, List[_file_t], Tuple[_file_t]]
@@ -39,8 +42,17 @@ class _ConfigIO(ABC):
     def __post_init__(self):
         for f in fields(self):
             if is_dataclass(f.type):
+                defaults = {}
+                for _f in fields(f.type):
+                    if _f.default != MISSING:
+                        val = _f.default
+                    elif _f.default_factory != MISSING:
+                        val = _f.default_factory()
+                    else:
+                        continue
+                    defaults[_f.name] = val
                 kwargs = getattr(self, f.name)
-                setattr(self, f.name, f.type(**kwargs))
+                setattr(self, f.name, f.type(**{**defaults, **kwargs}))
 
     @classmethod
     def inherits_from(cls, type_names: List[str]) -> bool:
@@ -74,7 +86,7 @@ class _ConfigIO(ABC):
         try:
             res = issubclass(cls, types)
         except Exception as err:
-            print(f"exception: {cls} {type_names=} {types=} {err}")
+            log.exception(f"unexpected exception: {cls} {type_names=} {types=} {err}")
             raise
         return res
 
