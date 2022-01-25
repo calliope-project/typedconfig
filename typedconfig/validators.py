@@ -11,10 +11,18 @@ __all__ = [
 ]
 
 
-def range_check(cls, _max, values, *, min_key):
+def trange_check(cls, _range, values):
     """Validator function for a range config object"""
+    if len(_range) != 2:
+        raise ValueError(f"range has too many elements: {len(_range)}")
+    # TODO: check time range order
+    return _range
+
+
+def range_check(cls, _max, values, *, min_key):
+    """Validator function for range config object"""
     if min_key in values and values[min_key] > _max:
-        raise ValueError(f"bad range: {values[min_key]} > {_max}")
+        raise ValueError(f"{min_key}: {values[min_key]} > {_max}")
     return _max
 
 
@@ -54,15 +62,6 @@ def sum_by_name(cls, values, *, total):
 
 
 def inheritance(cls, val, values, *, allowed_in):
-    # if issubclass(cls, allowed_in):  # FIXME: get the types
-    #     raise ValueError(f"{cls} does not inherit from either of {allowed_in}")
-
-    # MRO ends in the base property class, and object, remove those
-    if any(
-        map(
-            lambda i: i[0] in i[1],
-            product(allowed_in, map(str, cls.mro()[:-2])),  # FIXME: nasty hack
-        )
-    ):
+    if cls.inherits_from(allowed_in):
         return val
     raise TypeError(f"{cls} does not inherit from either of {allowed_in}")
