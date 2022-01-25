@@ -123,9 +123,7 @@ def mandatory_opts(cls, obj_opts, values):
     ):
         return obj_opts
     else:
-        raise ValueError(
-            f"missing mandatory options: {mandatory} not in {keys}"
-        )
+        raise ValueError(f"missing mandatory options: {mandatory} not in {keys}")
 
 
 Objective_t = make_typedconfig(
@@ -139,9 +137,7 @@ Objective_t = make_typedconfig(
 
 
 def test_conditional_keys():
-    obj_opts = ObjOpts_t(
-        cost_class={"monetary": 1}, sense="minimize", moreopts="foo"
-    )
+    obj_opts = ObjOpts_t(cost_class={"monetary": 1}, sense="minimize", moreopts="foo")
     optimiser_settings = Objective_t(
         objective="minmax_cost_optimization", objective_options=obj_opts
     )
@@ -173,9 +169,7 @@ Config_t = make_typedconfig(
 def test_nested_config():
     run = RunConfig_t(mode="normal", eff=0.42)
     rng = RangeType0(1, 5)
-    obj_opts = ObjOpts_t(
-        cost_class={"monetary": 1}, sense="minimize", moreopts=None
-    )
+    obj_opts = ObjOpts_t(cost_class={"monetary": 1}, sense="minimize", moreopts=None)
     optimiser_settings = Objective_t(
         objective="minmax_cost_optimization", objective_options=obj_opts
     )
