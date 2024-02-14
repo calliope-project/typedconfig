@@ -1,5 +1,9 @@
+NOTE: This code is archived and no longer being worked on
+=========================================================
+
 TypedConfig
-==========
+===========
+
 |unittests| |coverage|
 
 ``TypedConfig`` provides a set of factory methods and parsers to
